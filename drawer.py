@@ -346,6 +346,9 @@ def rounded_profile(pts, rounded, r, n=4):
     return res, smooth
 
 
+FACE_HOOK = None   # optional callback(kind, px_points, extra) for each prism face; perspective.py uses it for the wood look
+
+
 def prism(profile, rounded, plane, off0, off1, col, skip_x_right=False, skip_top=False):
     """Extrude a (u, v) profile: plane 'yz' extrudes along +x, 'xz' along +y."""
     pts, smooth = rounded_profile(profile, rounded, TAB_R)
@@ -379,12 +382,17 @@ def prism(profile, rounded, plane, off0, off1, col, skip_x_right=False, skip_top
         if skip_top and n[2] > 0.99:
             continue
         c = shade(col, bright(n))
-        poly([P(*to3(*p, off0)), P(*to3(*q, off0)), P(*to3(*q, off1)), P(*to3(*p, off1))],
-             c, c if smooth[i] else LINE, 0.6 if smooth[i] else 0.8)
+        quad = [P(*to3(*p, off0)), P(*to3(*q, off0)), P(*to3(*q, off1)), P(*to3(*p, off1))]
+        poly(quad, c, c if smooth[i] else LINE, 0.6 if smooth[i] else 0.8)
+        if FACE_HOOK:
+            FACE_HOOK("edge", quad, smooth[i])
     axis = (1, 0, 0) if plane == "yz" else (0, 1, 0)
     for n, off in (((-axis[0], -axis[1], 0), off0), (axis, off1)):
         if visible(n, to3(pts[0][0], pts[0][1], off)):
-            poly([P(*to3(*p, off)) for p in pts], shade(col, bright(n)), LINE, 0.8)
+            cap = [P(*to3(*p, off)) for p in pts]
+            poly(cap, shade(col, bright(n)), LINE, 0.8)
+            if FACE_HOOK:
+                FACE_HOOK("cap", cap, plane)
 
 
 def support3(y0, y1):
@@ -421,25 +429,34 @@ def rail3(xl, side, ys):
             face([(inner[0], y0, PART_H), (inner[1], y0, PART_H), (inner[1], y1, PART_H), (inner[0], y1, PART_H)], DIVC)
 
 
+BOX_EDGE = "#1f2937"
+
+
+def drawer_box():
+    """The drawer interior: back wall, left wall and floor with a 4" grid; the front and right sides are
+    left open and shown dashed. Shared by the drawing and perspective.py so both look identical."""
+    poly([P(0, D, 0), P(W, D, 0), P(W, D, H), P(0, D, H)], "#e5e7eb")
+    poly([P(0, 0, 0), P(0, D, 0), P(0, D, H), P(0, 0, H)], "#d1d5db")
+    poly([P(0, 0, 0), P(W, 0, 0), P(W, D, 0), P(0, D, 0)], "#f9fafb")
+    for gx in range(4, int(W) + 1, 4):
+        pline(P(gx, 0, 0), P(gx, D, 0))
+        pline(P(gx, D, 0), P(gx, D, H))
+    for gy in range(4, int(D), 4):
+        pline(P(0, gy, 0), P(W, gy, 0))
+        pline(P(0, gy, 0), P(0, gy, H))
+    for gz in range(4, int(H) + 1, 4):
+        pline(P(0, D, gz), P(W, D, gz))
+        pline(P(0, 0, gz), P(0, D, gz))
+    for p, q in [((0, D, 0), (W, D, 0)), ((0, D, 0), (0, 0, 0)), ((W, D, 0), (W, 0, 0)), ((0, 0, 0), (W, 0, 0)),
+                 ((0, D, 0), (0, D, H)), ((W, D, 0), (W, D, H)), ((0, 0, 0), (0, 0, H)),
+                 ((0, D, H), (W, D, H)), ((0, D, H), (0, 0, H))]:
+        pline(P(*p), P(*q), BOX_EDGE, 2)
+    for p, q in [((W, D, H), (W, 0, H)), ((0, 0, H), (W, 0, H)), ((W, 0, 0), (W, 0, H))]:
+        pline(P(*p), P(*q), "#6b7280", 1.5, "6 4")
+
+
 text(box_x, py - 22, "PERSPECTIVE (front and right walls omitted for clarity)", 16, "start", weight="bold")
-poly([P(0, D, 0), P(W, D, 0), P(W, D, H), P(0, D, H)], "#e5e7eb")
-poly([P(0, 0, 0), P(0, D, 0), P(0, D, H), P(0, 0, H)], "#d1d5db")
-poly([P(0, 0, 0), P(W, 0, 0), P(W, D, 0), P(0, D, 0)], "#f9fafb")
-for gx in range(4, int(W) + 1, 4):
-    pline(P(gx, 0, 0), P(gx, D, 0))
-    pline(P(gx, D, 0), P(gx, D, H))
-for gy in range(4, int(D), 4):
-    pline(P(0, gy, 0), P(W, gy, 0))
-    pline(P(0, gy, 0), P(0, gy, H))
-for gz in range(4, int(H) + 1, 4):
-    pline(P(0, D, gz), P(W, D, gz))
-    pline(P(0, 0, gz), P(0, D, gz))
-for p, q in [((0, D, 0), (W, D, 0)), ((0, D, 0), (0, 0, 0)), ((W, D, 0), (W, 0, 0)), ((0, 0, 0), (W, 0, 0)),
-             ((0, D, 0), (0, D, H)), ((W, D, 0), (W, D, H)), ((0, 0, 0), (0, 0, H)),
-             ((0, D, H), (W, D, H)), ((0, D, H), (0, 0, H))]:
-    pline(P(*p), P(*q), LINE, 2)
-for p, q in [((W, D, H), (W, 0, H)), ((0, 0, H), (W, 0, H)), ((W, 0, 0), (W, 0, H))]:
-    pline(P(*p), P(*q), "#6b7280", 1.5, "6 4")
+drawer_box()
 
 support3(D - T, D)
 items = []

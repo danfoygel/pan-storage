@@ -1,15 +1,21 @@
 # Pan & Lid Drawer Storage
 
+![The finished organizer in the drawer, rendered with a birch plywood look](perspective.svg)
+
+*The finished organizer at its final geometry (3.75" strips, 1 3/4" tabs and slots). The drawer box is shown in gray; the parts have the birch grain and layered plywood edges.*
+
 A drop-in, glue-and-slot storage system for pans and lids, built from 3/8" baltic birch and cut on a laser.
 Nothing is attached to the drawer: the assembly simply fills it and holds itself in place.
 
-Everything here is generated from two small Python scripts, so any dimension can be changed and the
+Everything here is generated from three small Python scripts, so any dimension can be changed and the
 drawings and the nested cut files regenerate together.
 
 | File | What it is |
 |---|---|
 | [`drawer.py`](drawer.py) | Geometry + drawing: plan, elevations, 3D perspective and parts sheet → `drawer.svg` |
 | [`nest.py`](nest.py) | Nests every part onto a sheet, checks the layout, writes the preview and cut files |
+| [`perspective.py`](perspective.py) | Wood-look perspective render of the assembly → `perspective.svg` |
+| [`perspective.svg`](perspective.svg) | The birch plywood render (above) |
 | [`drawer.svg`](drawer.svg) | The design drawing (below) |
 | [`layout_short_extra_row_h3.75_gap0.227_equal_34in.svg`](layout_short_extra_row_h3.75_gap0.227_equal_34in.svg) | Colour preview of the nested sheet |
 | [`cut_short_extra_row_h3.75_gap0.227_equal_34in_sheet1.svg`](cut_short_extra_row_h3.75_gap0.227_equal_34in_sheet1.svg) | 1:1 cut file, 48" × 34", hairline red outlines, no fill |
@@ -153,6 +159,7 @@ or bracing is needed.
 
 ```bash
 python3 drawer.py                                     # drawer.svg (4" parts)
+python3 perspective.py                                # perspective.svg (final 3.75" parts, wood look)
 SHEET_H=34 python3 nest.py short 3.75 7 max equal     # the final nested layout + cut file
 ```
 
