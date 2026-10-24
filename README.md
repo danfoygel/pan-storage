@@ -43,14 +43,8 @@ One 48" × 34" sheet holds the whole system: 2 supports, 4 rail outer plies, 4 r
 
 ## How the system works
 
-```
-        back support  ── slots every 1" ──────────────────────────────────
-              │             rails run front→back, tabs in the support slots
-              │      ┌──┐              ┌──┐          ┌──┐              ┌──┐
-              │      │R │  dividers →  │R │          │R │  dividers →  │R │
-              │      └──┘              └──┘          └──┘              └──┘
-        front support ─ slots every 1" ──────────────────────────────────
-```
+Two supports span the drawer at the front and back, four rails run between them with their tabs in the
+support slots, and dividers drop into the rail slots. The drawing above shows how they fit together.
 
 ### Supports (2)
 - Run the full width (32 3/8"), one at the front and one at the back, 3/8" thick.
