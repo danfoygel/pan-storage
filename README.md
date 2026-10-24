@@ -18,16 +18,12 @@ drawings and the nested cut files regenerate together.
 | [`perspective.svg`](perspective.svg) | The birch plywood render (above) |
 | [`drawer.svg`](drawer.svg) | The design drawing (below) |
 | [`layout_short_extra_row_h3.75_gap0.227_equal_34in.svg`](layout_short_extra_row_h3.75_gap0.227_equal_34in.svg) | Colour preview of the nested sheet |
-| [`cut_short_extra_row_h3.75_gap0.227_equal_34in_sheet1.svg`](cut_short_extra_row_h3.75_gap0.227_equal_34in_sheet1.svg) | 1:1 cut file, 48" × 34", hairline red outlines, no fill |
+| [`cut_short_extra_row_h3.75_gap0.227_equal_34in_sheet1.svg`](cut_short_extra_row_h3.75_gap0.227_equal_34in_sheet1.svg) | 1:1 cut file, 48" × 34", hairline outlines in three colour groups (holes, fingered parts, plain parts), no fill |
 | [`CLEARANCE.md`](CLEARANCE.md) | Every fit that needs an explicit clearance, and what the model currently assumes |
 
 ## The design drawing
 
 ![Drawer design: plan, front and right elevations, perspective, parts sheet](drawer.svg)
-
-> **Known gap:** `drawer.svg` draws the parts at the original 4" height (tab and slot depth 1 15/16").
-> The cut layout uses the final 3.75" strips (tab and slot depth 1 3/4"). Regenerating the drawing at
-> 3.75" is still to do. Widths, lengths, slot spacing and hole positions are identical in both.
 
 ## The nested layout
 
@@ -142,14 +138,37 @@ or bracing is needed.
   with 2" tabs the tabs sat exactly on each other's cut line.
 - **Row spacing equalized.** In each row the left padding, every gap between parts and the right padding
   are all the same size; a lone part is centred.
+- **Row order.** The two supports are in the middle, flipped so their fingers face away from each other.
+  Working outward in each direction, plain rows (rail outer plies, dividers) alternate with fingered rows
+  (rail inner plies). Every fingered row is flanked by plain stock on both sides, and its fingers always
+  face a plain row. Reading the layout across the sheet:
 
-  | Rows | Contents | Space |
+  | Row | Contents | Space (pad = gap) |
   |---|---|---|
-  | 1–2 | 3 × divider B | 23/32" |
-  | 3 | rail outer + divider B | 1 1/4" |
-  | 4–6 | rail outer + divider A | 1/4" (tight) |
-  | 7–10 | rail inner + divider A | 3/8" |
-  | 11–12 | support alone | 13/16" at each end |
+  | 1 | rail outer + divider A | 1/4" (tight) |
+  | 2 | rail inner + divider A | 3/8" |
+  | 3 | rail outer + divider A | 1/4" |
+  | 4 | rail inner + divider A | 3/8" |
+  | 5 | 3 × divider B | 23/32" |
+  | 6–7 | support (fingers face away from each other) | 13/16" at each end |
+  | 8 | 3 × divider B | 23/32" |
+  | 9 | rail inner + divider A | 3/8" |
+  | 10 | rail outer + divider B | 1 1/4" |
+  | 11 | rail inner + divider A | 3/8" |
+  | 12 | rail outer + divider A | 1/4" (tight) |
+
+### Cut order
+
+The cut file has three groups, each a different colour, so the laser software shows them as three layers
+that can be ordered:
+
+1. **Red: the 40 dowel holes.** Cut first, while the sheet is intact, so they are accurate relative to
+   the outlines.
+2. **Blue: the fingered parts** (2 supports, 4 rail inner plies). The thin fingers and the slivers of
+   waste between them are cut while the neighbouring plain parts are still uncut, solid stock.
+3. **Green: the plain parts** (4 rail outer plies, 14 dividers), simple outlines last.
+
+Do not move or unload the sheet between passes; after pass 2 the fingered parts are loose in the sheet.
 
 - **Layout check.** `nest.py` tests every pair of parts for crossing outlines, containment or a gap under
   the minimum, plus the edge padding and the clearance around the dowel holes. A failure is circled in red
@@ -158,12 +177,12 @@ or bracing is needed.
 ## Regenerating
 
 ```bash
-python3 drawer.py                                     # drawer.svg (4" parts)
-python3 perspective.py                                # perspective.svg (final 3.75" parts, wood look)
-SHEET_H=34 python3 nest.py short 3.75 7 max equal     # the final nested layout + cut file
+python3 drawer.py                                     # drawer.svg (final 3.75" parts)
+python3 perspective.py                                # perspective.svg (wood look)
+SHEET_H=34 python3 nest.py short 3.75 7 max equal order   # the final nested layout + cut file
 ```
 
-`nest.py` arguments: `long|short [strip_height [dividers_of_each_size [gap|auto|max [spread|equal]]]]`
+`nest.py` arguments: `long|short [strip_height [dividers_of_each_size [gap|auto|max [spread|equal [order]]]]]`
 (`SHEET_H` environment variable sets the sheet length; default 35). `long` runs parts along the 48" side,
 `short` along the 34"/35" side. For example `python3 nest.py long` gives the 4" strip layout with parts
 along the 48" side.
@@ -172,6 +191,5 @@ along the 48" side.
 
 - **Clearances are all zero** (nominal sizes everywhere). See [CLEARANCE.md](CLEARANCE.md) for every fit
   that needs a value, pending the measured plywood thickness and the laser's kerf.
-- Regenerate `drawer.svg` at the 3.75" strip height so it matches the cut layout.
 - The 3D view draws the dividers as plain boxes (no rounded corners shown).
 - Compartment layout for the actual pans and lids is the next step.

@@ -2,7 +2,7 @@
 for the pan & lid storage system.
 
 Axes (inches): x = left->right (W), y = front->back (D), z = up (H).
-All parts are 3/8" baltic birch, 4" tall.
+All parts are 3/8" baltic birch, PART_H tall (3.75" in the final design).
 """
 import math
 import os
@@ -13,8 +13,8 @@ S = 20  # px per inch in the flat views
 
 # ---- parts geometry ---------------------------------------------------------
 T = 0.375            # plywood thickness
-PART_H = float(os.environ.get("PART_H", "4.0"))   # height of every part (nest.py may shrink it)
-TAB_T = float(os.environ.get("TAB_T", "1.9375"))   # tab height on rail outer ply / dividers; under half the strip so nested tabs keep a gap
+PART_H = float(os.environ.get("PART_H", "3.75"))   # height of every part (final strip height; nest.py can override it)
+TAB_T = float(os.environ.get("TAB_T", "1.75"))   # tab height on rail outer ply / dividers; under half the strip so nested tabs keep a gap
 SLOT_CLR = 0.0       # extra slot depth beyond the tab height (to be set in the clearance pass)
 TAB = TAB_T + SLOT_CLR   # slot depth from the top (supports, rail inner ply) - matches the tab height
 SLOT_W = T           # support slot width: only the outer ply has tabs
@@ -150,13 +150,13 @@ def divider_ys(gap_index):
     return [y for g, y in DIVIDERS if g == gap_index]
 
 
-CW, CH = 1700, 1300
+CW, CH = 1700, 1360
 add(f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {CW} {CH}" font-family="Helvetica, Arial, sans-serif">')
 add('<defs><marker id="arr" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">'
     f'<path d="M0,1 L10,5 L0,9 z" fill="{DIM}"/></marker></defs>')
 add(f'<rect width="{CW}" height="{CH}" fill="#ffffff"/>')
 text(40, 48, "Pan &amp; Lid Drawer Storage", 26, "start", weight="bold")
-text(40, 72, f"Drawer interior {frac(W)} W  x  {frac(D)} D  x  {frac(H)} H   (grid = 4&quot;)   |   all parts 3/8&quot; baltic birch, 4&quot; tall", 15, "start", fill="#6b7280")
+text(40, 72, f"Drawer interior {frac(W)} W  x  {frac(D)} D  x  {frac(H)} H   (grid = 4&quot;)   |   all parts 3/8&quot; baltic birch, {PART_H:g}&quot; tall", 15, "start", fill="#6b7280")
 
 # legend
 lx = 1000
@@ -242,7 +242,7 @@ for sx in SLOTS:
         frect(sx, sx + SLOT_W, PART_H - TAB_T, PART_H, ROUT)
 dim_h(fx, fx + fw, fy + fh + 34, frac(W))
 dim_v(fx - 34, fy, fy + fh, frac(H))
-dim_v(fx + fw + 26, fy + fh - PART_H * S, fy + fh, '4"')
+dim_v(fx + fw + 26, fy + fh - PART_H * S, fy + fh, f'{PART_H:g}"')
 dim_v(fx + fw + 54, fy + fh - PART_H * S, fy + fh - (PART_H - TAB) * S, f'{TAB:g}"')
 
 # ---------------- Right side elevation ----------------
@@ -499,28 +499,28 @@ def drect(ox_, oy_, h, u0, u1, v0, v1, fill, sw=1):
 
 # support
 sy1 = ty + 40
-_pts, _rnd = notched(0, W, 4, [(s, s + SLOT_W) for s in SLOTS], TAB)
-dp(110, sy1, 4, _pts, SUP, rounded=_rnd)
-text(110, sy1 + 4 * S + 22, f"SUPPORT x2   {frac(W)} x 4&quot; x 3/8&quot;   |   {len(SLOTS)} slots, 3/8&quot; wide x {TAB:g}&quot; deep, 1&quot; centers, first slot at {frac(SLOTS[0])}", 14, "start", weight="bold")
+_pts, _rnd = notched(0, W, PART_H, [(s, s + SLOT_W) for s in SLOTS], TAB)
+dp(110, sy1, PART_H, _pts, SUP, rounded=_rnd)
+text(110, sy1 + PART_H * S + 22, f"SUPPORT x2   {frac(W)} x {PART_H:g}&quot; x 3/8&quot;   |   {len(SLOTS)} slots, 3/8&quot; wide x {TAB:g}&quot; deep, 1&quot; centers, first slot at {frac(SLOTS[0])}", 14, "start", weight="bold")
 
 # rail plies
-ry = sy1 + 4 * S + 80
+ry = sy1 + PART_H * S + 80
 rail_profile_uv = rail_profile
-dp(110, ry, 4, rail_profile_uv, ROUT, rounded={0, 1, 2, 4, 5, 7})
+dp(110, ry, PART_H, rail_profile_uv, ROUT, rounded={0, 1, 2, 4, 5, 7})
 BL = BODY1 - BODY0
-_pts, _rnd = notched(0, BL, 4, [(yc - BODY0 - NOTCH_W / 2, yc - BODY0 + NOTCH_W / 2) for yc in NOTCH_YS], TAB)
-dp(560, ry, 4, _pts, RIN, rounded=_rnd)
+_pts, _rnd = notched(0, BL, PART_H, [(yc - BODY0 - NOTCH_W / 2, yc - BODY0 + NOTCH_W / 2) for yc in NOTCH_YS], TAB)
+dp(560, ry, PART_H, _pts, RIN, rounded=_rnd)
 for _y in DOWEL_YS:
     for _ox, _u in ((110, _y), (560, _y - BODY0)):
         add(f'<circle cx="{_ox + _u * S:.1f}" cy="{ry + (4 - DOWEL_Z) * S:.1f}" r="{DOWEL_D / 2 * S:.1f}" fill="#ffffff" stroke="{LINE}" stroke-width="1"/>')
-text(110, ry + 4 * S + 72, f"{len(DOWEL_YS)} x 1/4&quot; dowel holes, {', '.join(frac(y) for y in DOWEL_YS)} from front, 1&quot; up", 12, "start", fill="#374151")
-text(560, ry + 4 * S + 72, f"same {len(DOWEL_YS)} dowel holes, same positions (aligns to outer ply)", 12, "start", fill="#374151")
-text(110, ry + 4 * S + 22, "RAIL OUTER PLY x4", 14, "start", weight="bold")
-text(110, ry + 4 * S + 40, f"{frac(D)} x 4&quot; x 3/8&quot;; end tabs {TAB_T:g}&quot; tall x 3/8&quot; long (body {frac(BODY1 - BODY0)} between supports)", 12, "start", fill="#374151")
-text(110, ry + 4 * S + 56, "all outside corners R 1/8&quot;", 12, "start", fill="#374151")
-text(560, ry + 4 * S + 22, "RAIL INNER PLY x4", 14, "start", weight="bold")
-text(560, ry + 4 * S + 40, f"{frac(BL)} x 4&quot; x 3/8&quot;, no tabs; {len(NOTCH_YS)} slots 3/8&quot; wide x {TAB:g}&quot; deep, 3/4&quot; centers", 12, "start", fill="#374151")
-text(560, ry + 4 * S + 56, "glue inner + outer: 3/4&quot; thick rail", 12, "start", fill="#374151")
+text(110, ry + PART_H * S + 72, f"{len(DOWEL_YS)} x 1/4&quot; dowel holes, {', '.join(frac(y) for y in DOWEL_YS)} from front, 1&quot; up", 12, "start", fill="#374151")
+text(560, ry + PART_H * S + 72, f"same {len(DOWEL_YS)} dowel holes, same positions (aligns to outer ply)", 12, "start", fill="#374151")
+text(110, ry + PART_H * S + 22, "RAIL OUTER PLY x4", 14, "start", weight="bold")
+text(110, ry + PART_H * S + 40, f"{frac(D)} x {PART_H:g}&quot; x 3/8&quot;; end tabs {TAB_T:g}&quot; tall x 3/8&quot; long (body {frac(BODY1 - BODY0)} between supports)", 12, "start", fill="#374151")
+text(110, ry + PART_H * S + 56, "all outside corners R 1/8&quot;", 12, "start", fill="#374151")
+text(560, ry + PART_H * S + 22, "RAIL INNER PLY x4", 14, "start", weight="bold")
+text(560, ry + PART_H * S + 40, f"{frac(BL)} x {PART_H:g}&quot; x 3/8&quot;, no tabs; {len(NOTCH_YS)} slots 3/8&quot; wide x {TAB:g}&quot; deep, 3/4&quot; centers", 12, "start", fill="#374151")
+text(560, ry + PART_H * S + 56, "glue inner + outer: 3/4&quot; thick rail", 12, "start", fill="#374151")
 
 # dividers
 for i, (gi, label, qty) in enumerate([(0, "A", 2), (1, "B", 1)]):
@@ -529,14 +529,14 @@ for i, (gi, label, qty) in enumerate([(0, "A", 2), (1, "B", 1)]):
     L = g + 2 * T
     ox_ = 1010 if i == 0 else 1010 + (GAPS[0][1] - GAPS[0][0] + 2 * T) * S + 40
     ts = PART_H - TAB_T
-    dp(ox_, ry, 4, [(0, PART_H), (L, PART_H), (L, ts), (L - T, ts), (L - T, 0), (T, 0), (T, ts), (0, ts)], DIVC, rounded={0, 1, 2, 4, 5, 7})
-    text(ox_, ry + 4 * S + 22, f"DIVIDER {label} (example x{qty})", 14, "start", weight="bold")
-    text(ox_, ry + 4 * S + 40, f"top {frac(L)}, body {frac(g)} x 4&quot; x 3/8&quot;", 12, "start", fill="#374151")
-    text(ox_, ry + 4 * S + 56, f"tabs {TAB_T:g}&quot; tall x 3/8&quot; long, corners R 1/8&quot;", 12, "start", fill="#374151")
+    dp(ox_, ry, PART_H, [(0, PART_H), (L, PART_H), (L, ts), (L - T, ts), (L - T, 0), (T, 0), (T, ts), (0, ts)], DIVC, rounded={0, 1, 2, 4, 5, 7})
+    text(ox_, ry + PART_H * S + 22, f"DIVIDER {label} (example x{qty})", 14, "start", weight="bold")
+    text(ox_, ry + PART_H * S + 40, f"top {frac(L)}, body {frac(g)} x {PART_H:g}&quot; x 3/8&quot;", 12, "start", fill="#374151")
+    text(ox_, ry + PART_H * S + 56, f"tabs {TAB_T:g}&quot; tall x 3/8&quot; long, corners R 1/8&quot;", 12, "start", fill="#374151")
 
 add("</svg>")
 
-if PART_H == 4.0:  # an overridden part height (used by nest.py) must not overwrite the drawing
+if PART_H == 3.75 and TAB_T == 1.75:  # an overridden part height (used by nest.py) must not overwrite the drawing
     with open("drawer.svg", "w") as f:
         f.write("\n".join(out))
     print("wrote drawer.svg")
