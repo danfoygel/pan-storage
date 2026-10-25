@@ -4,13 +4,13 @@ Every place where parts mate and an explicit clearance or tolerance has to be ch
 is what the current model assumes: **nominal sizes everywhere, zero clearance.** The **Decision** column is
 left open until the plywood thickness and laser kerf are measured.
 
-Dimensions below are for the current geometry: slotted parts (supports, rail inner plies) 3" tall, plain
-parts (rail outer plies, dividers) 4" tall, slots and fingers 1 1/2" deep. Everything stands on the drawer
-floor; the tabs of the tall parts run from the slot floor (1 1/2" up) to the top of the part, so 1 1/2" of each
-tab sits in a slot.
+Dimensions below are for the current geometry: slotted parts (supports, rail inner plies) and divider B 3"
+tall, rail outer plies and divider A 4" tall, slots and fingers 1 1/2" deep. Everything stands on the drawer
+floor; the tabs run from the slot floor (1 1/2" up) to the top of the part, so 1 1/2" of each tab sits in a slot.
 
-**The nest has no spare:** at x = 3" the parts fill the 48" × 34" sheet exactly (1/4" padding, 1/8" gaps), so
-any clearance that makes a part bigger has to come out of `x` (`nest.py short --max` finds the new limit).
+**The nest has some spare:** at x = 3" there is 1.5" of the 34" side left over, spread over 8 row gaps (0.312"
+each). The three `O A A` rows have only 1/4" to spare across the 48" width, so a clearance that lengthens the
+rail outer plies or divider A is limited to about 1/8" per part there (`nest.py --max` finds the new limit for `x`).
 
 ## A. Inputs that affect everything
 
@@ -72,8 +72,8 @@ through into the dividers.
 | # | Item | Value |
 |---|---|---|
 | G1 | Padding at all four sheet edges (minimum) | 1/4" |
-| G2 | Gap between parts | at least 1/8" (exactly 1/8" where the packing is tight) |
-| G3 | Layout | skyline packing, not rows: there are no equalized paddings |
+| G2 | Gap between rows | 0.312" (the spare 34" side spread over the row gaps; at least 1/8") |
+| G3 | Gap between parts within a row | equalized with the end padding per row (1/8" in the three `O A A` rows, at least 1/4" at the ends) |
 | G4 | Tabs on neighbouring plain parts | not interlocked; at least the 1/8" gap apart |
 | G5 | Minimum clearance around a dowel hole to the part edge | hole radius + half the part gap (0.1875"); the holes sit mid-spine, 0.6" from the nearest edge on the inner ply |
 
