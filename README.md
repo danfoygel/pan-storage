@@ -2,7 +2,7 @@
 
 ![The finished organizer in the drawer, rendered with a birch plywood look](perspective.svg)
 
-*The finished organizer (2 1/2" fingered parts, 4" plain parts, 1" tabs and slots). The drawer box is shown in gray; the parts have the birch grain and layered plywood edges.*
+*The finished organizer (3" slotted parts, 4" plain parts, 1 1/2" fingers and slots). The drawer box is shown in gray; the parts have the birch grain and layered plywood edges.*
 
 A drop-in, glue-and-slot storage system for pans and lids, built from 3/8" baltic birch and cut on a laser.
 Nothing is attached to the drawer: the assembly simply fills it and holds itself in place.
@@ -17,8 +17,8 @@ drawings and the nested cut files regenerate together.
 | [`perspective.py`](perspective.py) | Wood-look perspective render of the assembly → `perspective.svg` |
 | [`perspective.svg`](perspective.svg) | The birch plywood render (above) |
 | [`drawer.svg`](drawer.svg) | The design drawing (below) |
-| [`layout_48x34in.svg`](layout_48x34in.svg) | Colour preview of the nested sheet |
-| [`cut_48x34in_sheet1.svg`](cut_48x34in_sheet1.svg) | 1:1 cut file, 48" × 34", hairline outlines in three colour groups (holes, fingered parts, plain parts), no fill |
+| [`layout_short_x3.svg`](layout_short_x3.svg) | Colour preview of the nested sheet |
+| [`cut_short_x3_sheet1.svg`](cut_short_x3_sheet1.svg) | 1:1 cut file, 48" × 34", hairline outlines in three colour groups (holes, fingered parts, plain parts), no fill |
 | [`CLEARANCE.md`](CLEARANCE.md) | Every fit that needs an explicit clearance, and what the model currently assumes |
 
 ## The design drawing
@@ -27,11 +27,11 @@ drawings and the nested cut files regenerate together.
 
 ## The nested layout
 
-![Nested layout on one 48 x 34 sheet](layout_48x34in.svg)
+![Nested layout on one 48 x 34 sheet](layout_short_x3.svg)
 
 One 48" × 34" sheet holds the whole system: 2 supports, 4 rail outer plies, 4 rail inner plies,
 **7 divider A and 7 divider B**. The layout passes the built-in overlap check (smallest gap between parts
-0.214", smallest edge padding 0.250").
+0.125", the minimum; smallest edge padding 0.250").
 
 ## Inputs
 
@@ -49,15 +49,17 @@ Two supports span the drawer at the front and back, four rails run between them 
 support slots, and dividers drop into the rail slots. The drawing above shows how they fit together.
 
 ### Heights and how the parts meet
-Two heights: the **fingered parts** (supports and rail inner plies) are **2 1/2"** tall; the **plain parts**
-(rail outer plies and dividers) are **4"** tall. Slots and tabs are **1"** deep/tall. Everything stands on
-the drawer floor. The slots are open at the top of the fingered parts, between 1 1/2" and 2 1/2" up, so the
-tabs of the plain parts start at 1 1/2" up and run to the top of the 4" part (2 1/2" tall); the lower 1" of
-each tab sits in the slot and the rest rises above the support or inner ply. The plain parts are lowered in
-from above, and their bodies rise 1 1/2" above the supports and inner plies.
+Everything is set by one number, `x`, the height of the **slotted parts** (supports and rail inner plies);
+the **plain parts** (rail outer plies and dividers) are `x + 1` tall and the **fingers and slots** are `x / 2`
+deep. `x` is as large as the sheet allows (see Nesting): **x = 3"**, so the slotted parts are 3" tall, the plain
+parts 4" tall, and the fingers and slots 1 1/2". Everything stands on the drawer floor. The slots are open at
+the top of the slotted parts, between 1 1/2" and 3" up, so the tabs of the plain parts start at the slot floor,
+1 1/2" up, and run to the top of the 4" part (2 1/2" tall); the lower 1 1/2" of each tab sits in a slot and the
+rest rises above the support or inner ply. The plain parts are lowered in from above, and their bodies rise 1"
+above the supports and inner plies.
 
 ### Supports (2)
-- Run the full width (32 3/8"), one at the front and one at the back, 3/8" thick, 2 1/2" tall.
+- Run the full width (32 3/8"), one at the front and one at the back, 3/8" thick, 3" tall.
 - **31 slots**, 3/8" wide, on **1" centers**, first slot 1" from the end. Slot depth equals the tab height.
 - They fix the assembly side to side; the rails fix it front to back.
 
@@ -65,12 +67,12 @@ from above, and their bodies rise 1 1/2" above the supports and inner plies.
 Each rail is two 3/8" plies glued into one 3/4" rail.
 - **Outer ply** – structural, no slots, 4" tall. Full 20" long at the tabs: the end tabs (3/8" long, 2 1/2" tall, from
   1 1/2" up to the top) pass through the support slots. The body between the supports is 19 1/4".
-- **Inner ply** – 2 1/2" tall, 19 1/4" long (fits between the supports, no tabs). **24 slots**, 3/8" wide, on **3/4"
+- **Inner ply** – 3" tall, 19 1/4" long (fits between the supports, no tabs). **24 slots**, 3/8" wide, on **3/4"
   centers**, centred along the length, for the dividers. The 3/8" teeth between slots are backed by the
   outer ply, which carries the divider loads through the glue joint.
 - **5 alignment dowel holes**, 1/4" diameter, through both plies for glue-up registration, at
   1", 5 1/2", 10", 14 1/2" and 19" from the front, all 3/4" up from the bottom. That is mid-spine on the
-  inner ply (the 1 1/2" of solid wood below the slot floors). The pattern is symmetric so a ply can be flipped.
+  inner ply (the 1 1/2" of solid wood below the slot floors, `x / 4` up). The pattern is symmetric so a ply can be flipped.
 - Rail position is set by the support slots, so the gap between a pair is a whole number of inches minus
   1 1/8": **12 7/8"** and **9 7/8"** (the closest to the requested 13" and 10"). Spare width is 2" at
   the left, 2 5/8" in the middle and 2" at the right.
@@ -86,9 +88,9 @@ Each rail is two 3/8" plies glued into one 3/4" rail.
 
 | Part | Qty | Size (length × height × thickness) | Notes |
 |---|---|---|---|
-| Support | 2 | 32 3/8" × 2 1/2" × 3/8" | 31 slots, 3/8" × 1" deep, 1" centers |
+| Support | 2 | 32 3/8" × 3" × 3/8" | 31 slots, 3/8" × 1 1/2" deep, 1" centers |
 | Rail outer ply | 4 | 20" × 4" × 3/8" | tabs 2 1/2" tall × 3/8" long, 19 1/4" body, 5 dowel holes |
-| Rail inner ply | 4 | 19 1/4" × 2 1/2" × 3/8" | 24 slots 3/8" × 1" deep, 3/4" centers, 5 dowel holes |
+| Rail inner ply | 4 | 19 1/4" × 3" × 3/8" | 24 slots 3/8" × 1 1/2" deep, 3/4" centers, 5 dowel holes |
 | Divider A | 7 | 13 5/8" (tabs) / 12 7/8" (body) × 4" × 3/8" | tabs 2 1/2" tall |
 | Divider B | 7 | 10 5/8" (tabs) / 9 7/8" (body) × 4" × 3/8" | tabs 2 1/2" tall |
 
@@ -109,13 +111,14 @@ are left sharp because the laser cuts them cleanly.
 5. **Dowel holes.** 3, then 5, 1/4" holes; the outer pair were later moved to 5/8" in from the body ends.
 6. **Slot depth follows tab height.** Slot depth is defined as tab height plus a clearance (`SLOT_CLR`,
    currently 0). Tabs and slots started at 2", went to 1 3/4" for nesting, and are now **1"**.
-7. **Two heights (latest change).** Fingered parts 2 1/2", plain parts 4", all standing on the floor, with
-   the tabs of the tall parts starting at slot height and running up to the top (2 1/2" tall). This replaced the single 3.75" strip
-   height. The dowel holes moved from 1" up to 3/4" up: at 1" they would have landed inside the fingers of
-   the shorter inner ply, leaving 1/16" of wood beside each hole.
+7. **Two heights, one parameter (latest change).** The slotted parts are `x` tall, the plain parts `x + 1`, the
+   fingers and slots `x / 2`, all standing on the floor, with the tabs of the plain parts starting at the slot
+   floor and running to the top (`x / 2 + 1` tall). This replaced the single 3.75" strip height. `x` was
+   maximised against the sheet and came out at exactly **3"**. The dowel holes moved from 1" up to `x / 4`
+   (3/4" up): at 1" they would have landed inside the fingers of the shorter inner ply.
 
 ### Rail deflection check
-*Worked out for the earlier 3.75" geometry. With the 4" outer ply and 2 1/2" inner ply (1" slots) I is about 0.106 in⁴, so the deflections below hold; the 250 lb tab-engagement estimate was not re-derived for the 1" tabs.*
+*Worked out for the earlier 3.75" geometry. With the 4" outer ply and 3" inner ply (1 1/2" slots) I is about 0.11 in⁴, so the deflections below hold; the 250 lb tab-engagement estimate was not re-derived for the current tabs.*
 
 Treating a rail as a simply supported beam on edge, 19 1/4" span, I ≈ 0.10 in⁴ (slots included),
 E ≈ 1.0 × 10⁶ psi (0.6 × 10⁶ for weak-grain orientation):
@@ -131,34 +134,32 @@ or bracing is needed.
 
 ## Nesting decisions
 
-- **Sheet:** 48" × 34", parts run along the 48" side, 1/4" minimum padding at all four edges. Shorter is too
-  short: a 33" sheet would leave 0.07" between rows.
-- **Grain:** along the 48" side, so it runs across the strips and **along the fingers** (the strong
-  direction). The rails run across the grain along their length, which the deflection check above covers.
-- **Why not one row per part:** at two heights, single-height rows need about 47" of the 33.5" available
-  across the sheet. Three 2 1/2" strips (7.5" plus two gaps) fit in the same height as two 4" rows (8" plus a
-  gap), so the layout is built from **bands** two plain rows tall, each holding a stack of three fingered
-  strips beside two plain rows.
-- **Layout (top to bottom):**
+- **Sheet:** 48" × 34", 1/4" minimum padding at all four edges and 1/8" minimum between parts (the sheet is
+  fixed; a 36" sheet would not fit the CNC).
+- **Maximising x.** With the slotted height `x`, plain `x + 1` and fingers `x / 2`, the part count and lengths
+  fix the stack height. The nest packs the parts' bounding boxes with a bottom-left skyline (random part orders,
+  then hill climbing on the order, fixed seed), which lets the shorter slotted parts sit beside taller plain
+  ones so the next part tucks up under them. `python3 nest.py short --max` scans `x` in 1/16" steps:
 
-  | Unit | Left | Right |
-  |---|---|---|
-  | Band 1 | support, support, rail inner ply (stack of three) | divider A in each of two rows |
-  | Band 2 | rail inner ply × 3 (stack of three) | 2 rows, each a pair of divider A |
-  | Row 5 | rail outer ply, divider A, divider B | |
-  | Rows 6–8 | rail outer ply, divider B, divider B | |
+  | x (slotted) | plain | fingers | stack needed on the 48" side (limit 48") |
+  |---|---|---|---|
+  | 2 7/8" | 3 7/8" | 1 7/16" | 46.375" |
+  | 2 15/16" | 3 15/16" | 1 15/32" | 47.188" |
+  | **3"** | **4"** | **1 1/2"** | **48.000"** (no spare) |
+  | 3 1/16" | 4 1/16" | 1 17/32" | 48.812" (does not fit) |
 
-- **Gap between rows: 0.214".** The spare height (34" − 2 × 1/4" − 8 × 4" = 1.5") is spread over the 7 gaps.
-  The three strips of a fingered stack are spread evenly over the band.
-- **No interlocking:** the 2 1/2" tabs are taller than the 1 1/2" notch beside them, so neighbouring rail
-  outer plies and dividers cannot nest their tabs into each other's notches and each part takes its full
-  length in a row. There is still
-  room: the tightest plain row is 44 1/4" of parts in 48".
-- **Fingers:** within a stack the fingers face away from each other or at the solid back of the next strip,
-  never at another strip's fingers. The fingered strips are not flanked by uncut plain stock any more, so
-  the cut order below matters more.
-- **Row spacing equalized.** In each plain row the left padding, every gap between parts and the right
-  padding are the same size.
+  So **x = 3" is the largest that nests**, with exactly 1/8" gaps and 1/4" padding and nothing to spare. The
+  search is heuristic, so a smarter packing could in principle gain a little more; it did not in any run.
+- **Orientation:** the parts run along the **34" side** and are stacked along the 48" side, so a grain running
+  along the 48" side runs across the parts and **along the fingers** (the strong direction). The other orientation
+  (`python3 nest.py long`, parts along the 48" side, fingers across a 48" grain) tops out at x = 2 15/16".
+- **No interlocking:** the tabs of the plain parts are taller than the notch beside them (`x / 2 + 1` against
+  `x / 2`), so neighbouring rail outer plies and dividers cannot nest their tabs into each other's notches and
+  each part takes its full length.
+- **Fingers:** each fingered part is turned so its fingers face plain stock or the sheet edge, not another
+  fingered part's fingers, wherever the packing allows.
+- **No spare:** the packing is exactly tight, so any increase in the padding, gap, or part sizes (for example a
+  clearance, see [CLEARANCE.md](CLEARANCE.md)) will push `x` below 3".
 
 ### Cut order
 
@@ -168,9 +169,8 @@ that can be ordered:
 1. **Red: the 40 dowel holes.** Cut first, while the sheet is intact, so they are accurate relative to
    the outlines.
 2. **Blue: the fingered parts** (2 supports, 4 rail inner plies). The thin fingers and the slivers of
-   waste between them are cut while the neighbouring plain parts are still uncut, solid stock. Some of
-   the fingered strips neighbour each other (in the stacks) rather than plain stock; the fingers are still
-   supported by the uncut spine of the next strip.
+   waste between them are cut while the neighbouring plain parts are still uncut, solid stock. Where
+   several fingered parts sit side by side the fingers face the next part's spine, not its fingers.
 3. **Green: the plain parts** (4 rail outer plies, 14 dividers), simple outlines last.
 
 Do not move or unload the sheet between passes; after pass 2 the fingered parts are loose in the sheet.
@@ -184,12 +184,13 @@ Do not move or unload the sheet between passes; after pass 2 the fingered parts 
 ```bash
 python3 drawer.py        # drawer.svg
 python3 perspective.py   # perspective.svg (wood look)
-python3 nest.py          # layout_48x34in.svg + cut_48x34in_sheet1.svg, with the layout check
+python3 nest.py          # layout_short_x3.svg + cut_short_x3_sheet1.svg, with the layout check
+python3 nest.py short --max   # the largest slotted height x that nests (1/16" steps)
 ```
 
-`nest.py [gap]` takes an optional row gap in inches (default: spread the spare sheet height evenly);
-`SHEET_H` sets the sheet length (default 34). Heights and tab depth are `H_FING`, `H_PLAIN` and `TAB_T` at
-the top of `drawer.py`.
+`nest.py [short|long]` picks the orientation (default `short`). The slotted height is `x` (`X_FING` in the
+environment, default 3, at the top of `drawer.py`); the plain height and the finger depth follow from it, so
+for example `X_FING=2.875 python3 drawer.py` and `X_FING=2.875 python3 nest.py` regenerate everything at 2 7/8".
 
 ## Open items
 

@@ -4,9 +4,13 @@ Every place where parts mate and an explicit clearance or tolerance has to be ch
 is what the current model assumes: **nominal sizes everywhere, zero clearance.** The **Decision** column is
 left open until the plywood thickness and laser kerf are measured.
 
-Dimensions below are for the current geometry: fingered parts (supports, rail inner plies) 2 1/2" tall, plain
-parts (rail outer plies, dividers) 4" tall, slot depth and tab height 1". Everything stands on the drawer
-floor; the tabs of the tall parts run from the slot floor (1 1/2" up) to the top of the part, so 1" of each tab sits in a slot.
+Dimensions below are for the current geometry: slotted parts (supports, rail inner plies) 3" tall, plain
+parts (rail outer plies, dividers) 4" tall, slots and fingers 1 1/2" deep. Everything stands on the drawer
+floor; the tabs of the tall parts run from the slot floor (1 1/2" up) to the top of the part, so 1 1/2" of each
+tab sits in a slot.
+
+**The nest has no spare:** at x = 3" the parts fill the 48" × 34" sheet exactly (1/4" padding, 1/8" gaps), so
+any clearance that makes a part bigger has to come out of `x` (`nest.py short --max` finds the new limit).
 
 ## A. Inputs that affect everything
 
@@ -27,7 +31,7 @@ floor; the tabs of the tall parts run from the slot floor (1 1/2" up) to the top
 | # | Interface | Today | Decision |
 |---|---|---|---|
 | C1 | Support slot width vs outer-ply tab thickness (3/8"). | Exact. | |
-| C2 | Support slot depth vs tab height (1" each). | Exact (`SLOT_CLR = 0` in `drawer.py`). Decide whether the tab should bottom out in the slot or stop short. | |
+| C2 | Support slot depth vs tab height (1 1/2" each). | Exact (`SLOT_CLR = 0` in `drawer.py`). Decide whether the tab should bottom out in the slot or stop short. | |
 | C3 | Tab length vs support thickness (3/8"), so the tab end is flush with the drawer wall. | Exact. | |
 | C4 | Rail body length (19 1/4") vs the gap between the supports' inner faces (20" − 2 × 3/8"). Applies to both the inner and outer plies. | Exact. | |
 | C5 | Slot position tolerance across the support, which sets the gaps between rail pairs (12 7/8" and 9 7/8"). | Exact. | |
@@ -68,10 +72,10 @@ through into the dividers.
 | # | Item | Value |
 |---|---|---|
 | G1 | Padding at all four sheet edges (minimum) | 1/4" |
-| G2 | Gap between rows of parts | 0.214" (the spare sheet height spread over the 7 gaps) |
-| G3 | Gap between parts within a row | equalized with the end padding per row |
-| G4 | Tabs on neighbouring plain parts | not interlocked; at least the row gap apart |
-| G5 | Minimum clearance around a dowel hole to the part edge | hole radius + half the part gap (0.232"); the holes sit mid-spine, 5/8" from the nearest edge on the inner ply |
+| G2 | Gap between parts | at least 1/8" (exactly 1/8" where the packing is tight) |
+| G3 | Layout | skyline packing, not rows: there are no equalized paddings |
+| G4 | Tabs on neighbouring plain parts | not interlocked; at least the 1/8" gap apart |
+| G5 | Minimum clearance around a dowel hole to the part edge | hole radius + half the part gap (0.1875"); the holes sit mid-spine, 0.6" from the nearest edge on the inner ply |
 
 ## Next step
 

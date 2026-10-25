@@ -7,6 +7,7 @@ All parts are 3/8" baltic birch. Fingered parts (supports, rail inner plies) are
 parts start at the slot floor of the fingered parts and run up to the top of the part.
 """
 import math
+import os
 from math import gcd
 
 W, D, H = 32.375, 20.0, 9.5
@@ -14,9 +15,10 @@ S = 20  # px per inch in the flat views
 
 # ---- parts geometry ---------------------------------------------------------
 T = 0.375            # plywood thickness
-H_FING = 2.5         # height of the fingered parts: supports and rail inner plies
-H_PLAIN = 4.0        # height of the plain parts: rail outer plies and dividers
-TAB_T = 1.0          # slot depth (and how far the tabs of the tall parts reach into the slots)
+X = float(os.environ.get("X_FING", "3.0"))   # height of the slotted parts; nest.py --max finds the largest that nests on the sheet
+H_FING = X           # height of the fingered parts: supports and rail inner plies
+H_PLAIN = X + 1      # height of the plain parts: rail outer plies and dividers
+TAB_T = X / 2        # slot depth = finger height (and how far the tabs of the tall parts reach into the slots)
 SLOT_CLR = 0.0       # extra slot depth beyond the tab height (to be set in the clearance pass)
 TAB = TAB_T + SLOT_CLR   # slot depth from the top (supports, rail inner ply) - matches the tab height
 SLOT_W = T           # support slot width: only the outer ply has tabs
@@ -68,12 +70,12 @@ add = out.append
 
 
 def frac(v):
-    n = round(v * 16)
-    whole, n = divmod(n, 16)
+    n = round(v * 32)
+    whole, n = divmod(n, 32)
     if n == 0:
         return f'{whole}"'
-    g = gcd(n, 16)
-    f = f"{n // g}/{16 // g}"
+    g = gcd(n, 32)
+    f = f"{n // g}/{32 // g}"
     return f'{whole} {f}"' if whole else f'{f}"'
 
 

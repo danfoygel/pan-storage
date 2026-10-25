@@ -1,37 +1,125 @@
-"""Nest every part onto one 48" x 34" sheet; write layout_48x34in.svg (preview) + cut_48x34in_sheet1.svg (1:1, inches).
+"""Nest every part onto one 48" x 34" sheet; write layout_<orientation>_x<x>.svg (preview) and cut_<...>_sheet1.svg (1:1, inches).
 
-Geometry comes from drawer.py: fingered parts (supports, rail inner plies) are 2 1/2" tall, plain parts (rail
-outer plies, dividers) are 4" tall, tabs and slots are 1". Parts run along the 48" side, so the grain
-(along the 48" side) runs across the strips and along the fingers.
+Geometry comes from drawer.py. With x the height of the slotted parts (supports and rail inner plies), the plain
+parts (rail outer plies, dividers) are x + 1 tall and the fingers/slots are x / 2 deep. The nesting is a
+bottom-left skyline packing of the part outlines' bounding boxes (random part orders, then hill climbing, fixed seed),
+which lets the shorter slotted parts sit beside taller ones so the next part tucks up under them. The tabs of the
+plain parts run from the slot floor to the top and are taller than the notch beside them, so neighbouring plain
+parts cannot interlock. Every placement is then checked outline by outline (overlaps, gaps, edge padding, dowels).
 
-The layout is two "bands" followed by four single rows (stack, top to bottom):
-  band 1  (2 plain rows tall): 3 fingered strips (S, S, I) on the left, 2 x divider A on the right
-  band 2  (2 plain rows tall): 3 fingered strips (I, I, I) on the left, 4 x divider A (2 pairs) on the right
-  rows 5-8: one rail outer ply per row with dividers (O A B, O B B, O B B, O B B)
-A band is as tall as two plain rows and a gap, which also holds three 2 1/2" strips with room to spare.
-The tabs of the plain parts run from the slot floor to the top, taller than the notch beside them, so neighbouring plain parts cannot interlock.
-
-usage: python3 nest.py [gap]      (default gap: spread the spare height evenly, rounded down to 0.001")
-       SHEET_H=34 sets the sheet length (default 34)
+usage: python3 nest.py [short|long] [--max]
+  short (default): parts run along the 34" side, stacked along the 48" side. If the grain runs along the 48"
+                   side it runs across the parts and along the fingers (the strong direction).
+  long:            parts run along the 48" side (the fingers then run across a 48"-grain).
+  --max:           instead of nesting, report the largest x (1/16" steps) that fits (set X_FING to use it).
 """
 import math
-import os
+import random
 import sys
 
 import drawer as d
 
+ARGS = [a for a in sys.argv[1:] if not a.startswith("--")]
+ORIENT = ARGS[0] if ARGS else "short"
+FIND_MAX = "--max" in sys.argv
 EDGE = 0.25                     # padding at all four sheet edges (minimum)
-SHEET_W, SHEET_H = 48.0, float(os.environ.get("SHEET_H", "34"))
+G = 0.125                       # smallest gap between parts
+SHEET_W, SHEET_H = 48.0, 34.0
+ROW_LEN, STACK = (SHEET_H, SHEET_W) if ORIENT == "short" else (SHEET_W, SHEET_H)
 T, TAB_R = d.T, d.TAB_R
 H_F, H_P = d.H_FING, d.H_PLAIN
-ROWS = 8                        # plain-row heights in the stack (2 + 2 + 4)
-G = float(sys.argv[1]) if len(sys.argv) > 1 else math.floor((SHEET_H - 2 * EDGE - ROWS * H_P) / (ROWS - 1) * 1000) / 1000
 NEED = {"S": 2, "I": 4, "O": 4, "A": 7, "B": 7}    # parts in the system
+LENGTH = {"S": d.W, "I": d.BODY1 - d.BODY0, "O": d.D, "A": d.GAPS[0][1] - d.GAPS[0][0] + 2 * T, "B": d.GAPS[1][1] - d.GAPS[1][0] + 2 * T}
+SEED = 1
+
+
+# ---- skyline packing -----------------------------------------------------------
+def pack_order(order, x):
+    """Bottom-left skyline packing of the bounding boxes in the given order, in (row, stack) coordinates inside
+    the sheet. Returns (stack height used incl. both paddings, [(key, row_x, stack_y, width, height)]) or None."""
+    heights = {"S": x, "I": x, "O": x + 1, "A": x + 1, "B": x + 1}
+    inner = ROW_LEN - 2 * EDGE
+    sky, placed, top = [(0.0, 0.0, inner + G)], [], 0.0
+    for k in order:
+        w2, h2 = LENGTH[k] + G, heights[k] + G
+        bx, by = None, 1e9
+        for i, (sx, _, _) in enumerate(sky):
+            if sx + w2 > inner + G + 1e-9:
+                continue
+            yy, j, rem = 0.0, i, w2
+            while rem > 1e-9 and j < len(sky):
+                yy = max(yy, sky[j][1])
+                rem -= sky[j][2] - (sx - sky[j][0]) if j == i else sky[j][2]
+                j += 1
+            if yy < by - 1e-9 or (abs(yy - by) < 1e-9 and (bx is None or sx < bx)):
+                bx, by = sx, yy
+        if bx is None:
+            return None
+        new = []
+        for (sx, sy, sw) in sky:
+            ex = sx + sw
+            if ex <= bx + 1e-9 or sx >= bx + w2 - 1e-9:
+                new.append((sx, sy, sw))
+            else:
+                if sx < bx:
+                    new.append((sx, sy, bx - sx))
+                if ex > bx + w2:
+                    new.append((bx + w2, sy, ex - bx - w2))
+        new.append((bx, by + h2, w2))
+        sky = sorted(new)
+        placed.append((k, bx + EDGE, by + EDGE, LENGTH[k], heights[k]))
+        top = max(top, by + h2)
+    return top - G + 2 * EDGE, placed
+
+
+def skyline(x, rand_tries=3000, steps=60000, seed=SEED):
+    """Best packing found: random part orders, then hill climbing (swap or move one part, keep ties)."""
+    rnd = random.Random(seed)
+    names = [k for k, n in NEED.items() for _ in range(n)]
+    best = None
+    for _ in range(rand_tries):
+        order = names[:]
+        rnd.shuffle(order)
+        res = pack_order(order, x)
+        if res and (best is None or res[0] < best[0][0]):
+            best = (res, order)
+    if best is None:
+        return None
+    cur = best
+    for _ in range(steps):
+        order = cur[1][:]
+        i, j = rnd.randrange(len(order)), rnd.randrange(len(order))
+        if rnd.random() < 0.5:
+            order[i], order[j] = order[j], order[i]
+        else:
+            order.insert(j, order.pop(i))
+        res = pack_order(order, x)
+        if res and res[0] <= cur[0][0] + 1e-9:
+            cur = (res, order)
+            if cur[0][0] < best[0][0] - 1e-9:
+                best = cur
+    return best[0]
+
+
+if FIND_MAX:
+    print(f"{ORIENT}: sheet {SHEET_W:g} x {SHEET_H:g}, gap {G:g}, edge padding {EDGE:g}; stack must be <= {STACK:g}")
+    fits = None
+    for n in range(32, 64):       # x in 1/16" steps
+        x = n / 16
+        res = skyline(x, steps=20000)
+        used = res[0] if res else None
+        print(f"  x = {x:7.4f}  (plain {x + 1:7.4f}, fingers {x / 2:7.4f})  stack {'-' if used is None else f'{used:.3f}'}")
+        if used is not None and used <= STACK + 1e-9:
+            fits = x
+        elif fits is not None:
+            break
+    print(f"largest x that nests: {fits}")
+    sys.exit(0)
 
 
 # ---- parts (profiles in (u along length, v up)) ------------------------------
-def part(kind, name, pts, rnd, holes, L, h, tabbed, col):
-    return dict(kind=kind, name=name, pts=pts, rnd=rnd, holes=holes, L=L, H=h, tabbed=tabbed, col=col)
+def part(kind, name, pts, rnd, holes, L, h, col):
+    return dict(kind=kind, name=name, pts=pts, rnd=rnd, holes=holes, L=L, H=h, col=col)
 
 
 def make_parts():
@@ -39,19 +127,21 @@ def make_parts():
     ip, ir = d.notched(d.BODY0, d.BODY1, H_F, [(y - d.NOTCH_W / 2, y + d.NOTCH_W / 2) for y in d.NOTCH_YS], d.TAB)
     ip = [(u - d.BODY0, v) for u, v in ip]
     out = {
-        "S": part("S", "SUPPORT", sp, sr, [], d.W, H_F, False, d.SUP),
-        "I": part("I", "RAIL INNER", ip, ir, [(y - d.BODY0, d.DOWEL_Z) for y in d.DOWEL_YS], d.BODY1 - d.BODY0, H_F, False, d.RIN),
-        "O": part("O", "RAIL OUTER", d.RAIL_PROFILE, d.RAIL_RND, [(y, d.DOWEL_Z) for y in d.DOWEL_YS], d.D, H_P, True, d.ROUT),
+        "S": part("S", "SUPPORT", sp, sr, [], d.W, H_F, d.SUP),
+        "I": part("I", "RAIL INNER", ip, ir, [(y - d.BODY0, d.DOWEL_Z) for y in d.DOWEL_YS], d.BODY1 - d.BODY0, H_F, d.RIN),
+        "O": part("O", "RAIL OUTER", d.RAIL_PROFILE, d.RAIL_RND, [(y, d.DOWEL_Z) for y in d.DOWEL_YS], d.D, H_P, d.ROUT),
     }
     for k, gi, col in (("A", 0, d.DIVC), ("B", 1, "#c084fc")):
         gl, gr = d.GAPS[gi]
         L = gr - gl + 2 * T
         dpts, drnd = d.divider_profile(L)
-        out[k] = part(k, f"DIVIDER {k}  {d.frac(gr - gl)} gap", dpts, drnd, [], L, H_P, True, col)
+        out[k] = part(k, f"DIVIDER {k}  {d.frac(gr - gl)} gap", dpts, drnd, [], L, H_P, col)
     return out
 
 
 PARTS = make_parts()
+for _k, _p in PARTS.items():
+    assert abs(_p["L"] - LENGTH[_k]) < 1e-9
 
 
 def path_d(pts, rounded, r):
@@ -74,13 +164,18 @@ PLACED, VIEW, TALLY = [], [], {}
 CUTG = {"holes": [], "fingers": [], "plain": []}   # cut-file elements by operation
 
 
+def to_sheet(lx, ly):
+    """(row, stack) layout coordinates -> sheet coordinates (short: the rows are turned 90 degrees)."""
+    return (lx, ly) if ORIENT == "long" else (STACK - ly, lx)
+
+
 def put(key, x0, ytop, inv):
     """Place a part with its left edge at x0 and the top of its strip at ytop; inv = turned 180 degrees."""
     p = PARTS[key]
     L, h = p["L"], p["H"]
 
     def tf(u, v):
-        return (x0 + L - u, ytop + v) if inv else (x0 + u, ytop + h - v)
+        return to_sheet(*((x0 + L - u, ytop + v) if inv else (x0 + u, ytop + h - v)))
     pts, holes = [tf(*q) for q in p["pts"]], [tf(*q) for q in p["holes"]]
     dd = path_d(pts, p["rnd"], TAB_R)
     PLACED.append(dict(name=p["name"], pts=d.rounded_profile(pts, p["rnd"], TAB_R, n=6)[0], holes=holes))
@@ -89,48 +184,37 @@ def put(key, x0, ytop, inv):
     CUTG["holes"] += [f'<circle cx="{x:.4f}" cy="{y:.4f}" r="{d.DOWEL_D / 2}"/>' for x, y in holes]
     VIEW.append(f'<path d="{dd}" fill="{p["col"]}" stroke="#1f2937" stroke-width="0.03" stroke-linejoin="round"/>')
     VIEW.extend(f'<circle cx="{x:.4f}" cy="{y:.4f}" r="{d.DOWEL_D / 2}" fill="#ffffff" stroke="#1f2937" stroke-width="0.02"/>' for x, y in holes)
-    VIEW.append(f'<text x="{x0 + L / 2:.3f}" y="{ytop + (1.0 if key == "O" else h / 2 + 0.15):.3f}" font-size="0.42" text-anchor="middle" fill="#111827">{p["name"].split("  ")[0]}</text>')
-    return x0 + L
+    tx, ty = to_sheet(x0 + L / 2, ytop + (0.75 if key == "O" else 0.5 * h) + 0.15)
+    rot = "" if ORIENT == "long" else f' transform="rotate(90 {tx:.3f} {ty:.3f})"'
+    VIEW.append(f'<text x="{tx:.3f}" y="{ty:.3f}" font-size="0.42" text-anchor="middle" fill="#111827"{rot}>{p["name"].split("  ")[0]}</text>')
 
 
-def row(keys, ytop, x_from=0.0, x_to=SHEET_W):
-    """Parts left to right in [x_from, x_to] with padding = every gap (centred if alone). The tabs reach
-    from the slot floor to the top, so neighbouring parts cannot interlock and each counts its full length."""
-    parts = [PARTS[k] for k in keys]
-    space = (x_to - x_from - sum(p["L"] for p in parts)) / (len(parts) + 1)
-    x = x_from + space
-    for k, p in zip(keys, parts):
-        x = put(k, x, ytop, False) + space
+def finger_directions(placed):
+    """Turn each fingered part so its fingers face plain stock or the sheet edge rather than other fingers.
+    Returns {index: inv}; inv False = fingers toward smaller stack coordinates."""
+    boxes = [(k, x, y, w, h) for k, x, y, w, h in placed]
 
-
-def column(keys_dirs, y0, y1, x0):
-    """Stack fingered strips between y0 and y1 with equal gaps; 'up' = fingers toward the top of the sheet.
-    Fingers never face fingers: they point away, or at the solid back of the neighbouring strip."""
-    gap = (y1 - y0 - H_F * len(keys_dirs)) / (len(keys_dirs) - 1)
-    for i, (k, dr) in enumerate(keys_dirs):
-        put(k, x0, y0 + i * (H_F + gap), dr == "down")
+    def facing(i, up):
+        k, x, y, w, h = boxes[i]
+        lo, hi = (y - d.TAB - G - 0.01, y) if up else (y + h, y + h + d.TAB + G + 0.01)
+        kinds = {k2 for j, (k2, x2, y2, w2, h2) in enumerate(boxes)
+                 if j != i and x2 < x + w and x2 + w2 > x and y2 < hi and y2 + h2 > lo}
+        if lo < EDGE - 1e-9 or hi > STACK - EDGE + 1e-9:
+            kinds.add("edge")
+        return 0 if kinds & set("SI") else (2 if kinds & set("OAB") else 1)
+    return {i: facing(i, False) < facing(i, True) for i, (k, *_r) in enumerate(boxes) if k in "SI"}
 
 
 def build():
-    y = EDGE
-    band = 2 * H_P + G
-    # band 1: S, S, I stacked on the left, divider A in each of the two plain rows on the right
-    fx = (SHEET_W - (d.W + PARTS["A"]["L"])) / 3
-    column([("S", "up"), ("S", "up"), ("I", "up")], y, y + band, fx)
-    for i in range(2):
-        put("A", 2 * fx + d.W, y + i * (H_P + G), False)
-    y += band + G
-    # band 2: I, I, I on the left, a pair of divider A in each of the two plain rows on the right
-    pair_w = 2 * PARTS["A"]["L"]
-    fx = (SHEET_W - (PARTS["I"]["L"] + pair_w)) / 3
-    column([("I", "down"), ("I", "down"), ("I", "down")], y, y + band, fx)
-    for i in range(2):
-        row(["A", "A"], y + i * (H_P + G), fx + PARTS["I"]["L"], SHEET_W)
-    y += band + G
-    for keys in (["O", "A", "B"], ["O", "B", "B"], ["O", "B", "B"], ["O", "B", "B"]):
-        row(keys, y)
-        y += H_P + G
-    return y - G + EDGE    # stack height used, including the bottom padding
+    res = skyline(H_F)
+    if res is None or res[0] > STACK + 1e-9:
+        sys.exit(f"does not fit: x = {H_F:g} needs {'more than ' + format(STACK, 'g') if res is None else format(res[0], '.3f')}\" of the {STACK:g}\" side"
+                 f" ({ORIENT} orientation); run `python3 nest.py {ORIENT} --max`")
+    used, placed = res
+    inv = finger_directions(placed)
+    for i, (k, x, y, w, h) in enumerate(placed):
+        put(k, x, y, inv.get(i, False))
+    return used
 
 
 STACK_USED = build()
@@ -229,16 +313,17 @@ for gid, key, color in (("1_dowel_holes", "holes", "#ff0000"), ("2_fingered_part
     cut += CUTG[key]
     cut.append("</g>")
 cut.append("</svg>")
-TAG = f"{SHEET_W:g}x{SHEET_H:g}in"
+TAG = f"{ORIENT}_x{H_F:g}"
 open(f"cut_{TAG}_sheet1.svg", "w").write("\n".join(cut))
 
+GRAIN_NOTE = ' (grain along the 48" side runs along the fingers)' if ORIENT == "short" else ""
 desc = ", ".join(f"{TALLY[k]} x {PARTS[k]['name'].split('  ')[0]}" for k in "SIOAB")
 head = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 -1 {SHEET_W + 2:g} {SHEET_H + VIEW_OY + 2:g}" font-family="Helvetica, Arial, sans-serif">',
         f'<rect x="-1" y="-1" width="{SHEET_W + 2:g}" height="{SHEET_H + VIEW_OY + 2:g}" fill="#ffffff"/>',
         '<text x="0" y="1.2" font-size="1.5" font-weight="bold" fill="#111827">Pan &amp; Lid Drawer Storage - nested layout</text>',
-        f'<text x="0" y="2.6" font-size="0.7" fill="#6b7280">3/8" baltic birch, parts run along the 48" side. Fingered parts (supports, rail inner plies) {H_F:g}" tall, plain parts (rail outer plies, dividers) {H_P:g}" tall; tabs and slots {d.TAB_T:g}".</text>',
-        f'<text x="0" y="3.2" font-size="0.7" fill="#6b7280">Padding {EDGE:g}" minimum at the sheet edges, {G:g}" between rows.</text>',
-        f'<text x="0" y="3.9" font-size="0.7" fill="#6b7280">Sheet {SHEET_W:g}" x {SHEET_H:g}": {desc}.</text>',
+        f'<text x="0" y="2.4" font-size="0.7" fill="#6b7280">3/8" baltic birch, parts run along the {"34" if ORIENT == "short" else "48"}" side{GRAIN_NOTE}. Slotted parts (supports, rail inner plies) {H_F:g}" tall, plain parts (rail outer plies, dividers) {H_P:g}" tall; fingers and slots {d.TAB_T:g}" deep.</text>',
+        f'<text x="0" y="3.1" font-size="0.7" fill="#6b7280">Skyline packing of the part outlines; padding {EDGE:g}" minimum at the sheet edges, {G:g}" minimum between parts.</text>',
+        f'<text x="0" y="3.8" font-size="0.7" fill="#6b7280">Sheet {SHEET_W:g}" x {SHEET_H:g}": {desc}.</text>',
         '<text x="0" y="5.8" font-size="0.7" fill="#6b7280">Cut order (cut file colours): 1 red = dowel holes, 2 blue = fingered parts (supports, rail inner plies), 3 green = plain parts (rail outer plies, dividers).</text>']
 if ERRORS:
     head.append(f'<text x="0" y="4.8" font-size="0.8" font-weight="bold" fill="#dc2626">LAYOUT ERRORS ({len(ERRORS)}): ' + "; ".join(m for m, _ in ERRORS[:3]).replace("&", "&amp;").replace('"', "&quot;") + (" ..." if len(ERRORS) > 3 else "") + "</text>")
@@ -247,7 +332,7 @@ else:
 sheet = [f'<g transform="translate(0 {VIEW_OY})">', f'<rect x="0" y="0" width="{SHEET_W:g}" height="{SHEET_H:g}" fill="#fbf7ee" stroke="#6b7280" stroke-width="0.08"/>'] + VIEW + ["</g>"]
 open(f"layout_{TAG}.svg", "w").write("\n".join(head + sheet + ["</svg>"]))
 print("totals:", {k: TALLY[k] for k in "SIOAB"})
-print(f"stack used {STACK_USED:.3f}\" of {SHEET_H:g}\" (bottom padding {SHEET_H - STACK_USED + EDGE:.3f}\")")
+print(f"x = {H_F:g} (plain {H_P:g}, fingers {d.TAB_T:g}); {ORIENT} orientation: {STACK_USED:.3f}\" used of the {STACK:g}\" side ({STACK - STACK_USED:.3f}\" spare)")
 if ERRORS:
     print(f"LAYOUT ERRORS ({len(ERRORS)}):")
     for m, _ in ERRORS:
