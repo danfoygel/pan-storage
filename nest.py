@@ -12,6 +12,8 @@ without fingers so the fingers can be cut first while the neighbouring plain row
     plain rows, and its fingers face one of them.
 The set of rows that needs the least total height is found exactly (dynamic programming over the parts left to
 place), then the rows are ordered plain / fingered / plain / ... and the spare height is spread over the gaps.
+The fingered rows run: a support row (support pushed to the right edge), the rail inner ply rows, then the other
+support row (support pushed to the left edge).
 The tabs of the tall parts run from the slot floor to the top, taller than the notch beside them, so neighbouring
 parts cannot interlock and each takes its full length in a row. Every placement is checked outline by outline
 (overlaps, gaps, edge padding, dowels).
@@ -163,13 +165,22 @@ def put(key, x0, ytop, inv):
 
 
 def row_order(rows):
-    """Interleave: plain, fingered, plain, fingered, ..., plain (extra plain rows go at the end)."""
+    """Interleave: plain, fingered, plain, fingered, ..., plain (extra plain rows go at the end). The fingered rows
+    go in this order: the first row with a support, the rows with only rail inner plies, the last row with a
+    support. Returns the rows and a {row index: "left" | "right"} alignment for the support rows."""
     fing = [r for r in rows if r[2]]
     plain = [r for r in rows if not r[2]]
-    out = []
+    supports = [r for r in fing if r[0].get("S")]
+    fing = supports[:1] + [r for r in fing if not r[0].get("S")] + supports[1:]
+    out, align = [], {}
     for i, f in enumerate(fing):
-        out += [plain[i], f]
-    return out + plain[len(fing):]
+        out += [plain[i]]
+        if f is supports[0]:
+            align[len(out)] = "right"
+        elif len(supports) > 1 and f is supports[-1]:
+            align[len(out)] = "left"
+        out += [f]
+    return out + plain[len(fing):], align
 
 
 def build():
@@ -178,17 +189,22 @@ def build():
         sys.exit(f"does not fit: x = {H_F:g} needs {'more than ' + format(STACK, 'g') if res is None else format(res[0], '.3f')}\" of the {STACK:g}\" side"
                  f" ({ORIENT} orientation); run `python3 nest.py {ORIENT} --max`")
     used, rows = res
-    rows = row_order(rows)
+    rows, align = row_order(rows)
     gap = (STACK - 2 * EDGE - sum(h for _, h, _ in rows)) / (len(rows) - 1)     # spread the spare height over the row gaps
     y = EDGE
-    for counts, h, fingered in rows:
+    for i, (counts, h, fingered) in enumerate(rows):
         keys = [k for k in "SIOAB" for _ in range(counts.get(k, 0))]
         free = ROW_LEN - sum(LENGTH[k] for k in keys)
-        space = free / (len(keys) + 1)           # end padding = every gap within the row ...
-        inner = space
-        if space < EDGE:                         # ... unless that would crowd the sheet edge: then pad EDGE and share the rest
-            space, inner = EDGE, (free - 2 * EDGE) / (len(keys) - 1)
-        x = space
+        if i in align:                           # a support row is pushed against one side, its other parts beside it
+            keys.sort(key=lambda k: (k == "S") if align[i] == "right" else (k != "S"))
+            inner = max(gap, G)
+            x = ROW_LEN - EDGE - sum(LENGTH[k] for k in keys) - inner * (len(keys) - 1) if align[i] == "right" else EDGE
+        else:
+            space = free / (len(keys) + 1)       # end padding = every gap within the row ...
+            inner = space
+            if space < EDGE:                     # ... unless that would crowd the sheet edge: then pad EDGE and share the rest
+                space, inner = EDGE, (free - 2 * EDGE) / (len(keys) - 1)
+            x = space
         for k in keys:
             put(k, x, y, False)                  # fingers face the row above, which is plain
             x += LENGTH[k] + inner
@@ -307,12 +323,12 @@ head = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 -1 {SHEET_W + 2:g}
         f'<text x="0" y="2.3" font-size="0.7" fill="#6b7280">3/8" baltic birch; parts run along the {"34" if ORIENT == "short" else "48"}" side{GRAIN_NOTE}.</text>',
         f'<text x="0" y="3.0" font-size="0.7" fill="#6b7280">Slotted parts (supports, rail inner plies) and divider B {H_F:g}" tall; rail outer plies and divider A {H_P:g}" tall; fingers and slots {d.TAB_T:g}" deep.</text>',
         f'<text x="0" y="3.7" font-size="0.7" fill="#6b7280">Rows with fingers alternate with plain rows; padding {EDGE:g}" at the sheet edges, {ROW_GAP:.3f}" between rows (min {G:g}").</text>',
-        f'<text x="0" y="4.3" font-size="0.7" fill="#6b7280">Sheet {SHEET_W:g}" x {SHEET_H:g}": {desc}.</text>',
-        '<text x="0" y="6.1" font-size="0.7" fill="#6b7280">Cut order (cut file colours): 1 red = dowel holes, 2 blue = fingered parts (supports, rail inner plies), 3 green = plain parts (rail outer plies, dividers).</text>']
+        f'<text x="0" y="4.4" font-size="0.7" fill="#6b7280">Sheet {SHEET_W:g}" x {SHEET_H:g}": {desc}.</text>',
+        '<text x="0" y="6.4" font-size="0.7" fill="#6b7280">Cut order (cut file colours): 1 red = dowel holes, 2 blue = fingered parts (supports, rail inner plies), 3 green = plain parts (rail outer plies, dividers).</text>']
 if ERRORS:
-    head.append(f'<text x="0" y="5.1" font-size="0.8" font-weight="bold" fill="#dc2626">LAYOUT ERRORS ({len(ERRORS)}): ' + "; ".join(m for m, _ in ERRORS[:3]).replace("&", "&amp;").replace('"', "&quot;") + (" ..." if len(ERRORS) > 3 else "") + "</text>")
+    head.append(f'<text x="0" y="5.4" font-size="0.8" font-weight="bold" fill="#dc2626">LAYOUT ERRORS ({len(ERRORS)}): ' + "; ".join(m for m, _ in ERRORS[:3]).replace("&", "&amp;").replace('"', "&quot;") + (" ..." if len(ERRORS) > 3 else "") + "</text>")
 else:
-    head.append(f'<text x="0" y="5.1" font-size="0.8" font-weight="bold" fill="#15803d">Layout check passed: no overlaps; smallest gap between parts {MIN_GAP:.3f}&quot; (min {G:g}&quot;), smallest edge padding {MIN_EDGE:.3f}&quot; (min {EDGE:g}&quot;).</text>')
+    head.append(f'<text x="0" y="5.4" font-size="0.8" font-weight="bold" fill="#15803d">Layout check passed: no overlaps; smallest gap between parts {MIN_GAP:.3f}&quot; (min {G:g}&quot;), smallest edge padding {MIN_EDGE:.3f}&quot; (min {EDGE:g}&quot;).</text>')
 sheet = [f'<g transform="translate(0 {VIEW_OY})">', f'<rect x="0" y="0" width="{SHEET_W:g}" height="{SHEET_H:g}" fill="#fbf7ee" stroke="#6b7280" stroke-width="0.08"/>'] + VIEW + ["</g>"]
 open(f"layout_{TAG}.svg", "w").write("\n".join(head + sheet + ["</svg>"]))
 print("totals:", {k: TALLY[k] for k in "SIOAB"})

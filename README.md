@@ -159,8 +159,10 @@ or bracing is needed.
   | 3 3/16" | 4 3/16" | 1 19/32" | 34.188" (does not fit) |
 
   At **x = 3"** the 9 rows are
-  `P OAB | F SB | P OAA | F SB | P OAA | F II | P OAA | F II | P BBBB`
+  `P OAB | F BS | P OAA | F II | P OAA | F II | P OAA | F SB | P BBBB`
   (P / F = plain / fingered row; O, A, B = rail outer ply, divider A, divider B; S, I = support, rail inner ply).
+  The fingered rows run in a fixed order: a support row with the **support pushed against the right edge**, the two
+  rail inner ply rows, then the other support row with the **support pushed against the left edge**.
   The 1.5" of spare height is spread over the 8 row gaps, so rows are **0.312" apart**. The three `O A A` rows are
   47 1/4" of parts in 47 1/2" of usable width, so the gaps inside those rows can only be 1/8"; the other rows have
   more room, and the padding in each row is equalized.
