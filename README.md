@@ -48,12 +48,13 @@ One 48" × 34" sheet holds the whole system: 2 supports, 4 rail outer plies, 4 r
 Two supports span the drawer at the front and back, four rails run between them with their tabs in the
 support slots, and dividers drop into the rail slots. The drawing above shows how they fit together.
 
-### Heights and how the tops line up
+### Heights and how the parts meet
 Two heights: the **fingered parts** (supports and rail inner plies) are **2 1/2"** tall; the **plain parts**
-(rail outer plies and dividers) are **4"** tall. Slots and tabs are **1"** deep/tall. All tops are flush at
-4" above the drawer floor, so the supports and inner plies hang 1 1/2" above the floor: the supports rest on
-the bottoms of the outer-ply tabs in their slots, and the inner plies are glued to the outer plies. The
-rails and dividers stand on the floor.
+(rail outer plies and dividers) are **4"** tall. Slots and tabs are **1"** deep/tall. Everything stands on
+the drawer floor. The slots are open at the top of the fingered parts, between 1 1/2" and 2 1/2" up, so the
+tabs of the plain parts are 1"-tall stubs on the ends of the 4" body, 1 1/2" to 2 1/2" up from its bottom.
+The plain parts are lowered in from above, the stubs dropping into the slots, and the 4" bodies rise 1 1/2"
+above the supports and inner plies.
 
 ### Supports (2)
 - Run the full width (32 3/8"), one at the front and one at the back, 3/8" thick, 2 1/2" tall.
@@ -62,15 +63,14 @@ rails and dividers stand on the floor.
 
 ### Rails (4, in two pairs)
 Each rail is two 3/8" plies glued into one 3/4" rail.
-- **Outer ply** – structural, no slots, 4" tall. Full 20" long at the tabs: the end tabs (3/8" long, 1" tall)
-  pass through the support slots. The body between the supports is 19 1/4".
+- **Outer ply** – structural, no slots, 4" tall. Full 20" long at the tabs: the end tabs (3/8" long, 1" tall,
+  1 1/2" up from the bottom) pass through the support slots. The body between the supports is 19 1/4".
 - **Inner ply** – 2 1/2" tall, 19 1/4" long (fits between the supports, no tabs). **24 slots**, 3/8" wide, on **3/4"
   centers**, centred along the length, for the dividers. The 3/8" teeth between slots are backed by the
   outer ply, which carries the divider loads through the glue joint.
 - **5 alignment dowel holes**, 1/4" diameter, through both plies for glue-up registration, at
-  1", 5 1/2", 10", 14 1/2" and 19" from the front. They sit mid-spine on the inner ply (3/4" up, between the
-  1 1/2" spine's edges, below the slot floors), which is 2 1/4" above the bottom of the outer ply. The pattern
-  is symmetric so a ply can be flipped.
+  1", 5 1/2", 10", 14 1/2" and 19" from the front, all 3/4" up from the bottom. That is mid-spine on the
+  inner ply (the 1 1/2" of solid wood below the slot floors). The pattern is symmetric so a ply can be flipped.
 - Rail position is set by the support slots, so the gap between a pair is a whole number of inches minus
   1 1/8": **12 7/8"** and **9 7/8"** (the closest to the requested 13" and 10"). Spare width is 2" at
   the left, 2 5/8" in the middle and 2" at the right.
@@ -78,7 +78,8 @@ Each rail is two 3/8" plies glued into one 3/4" rail.
 ### Dividers
 - **Divider A** for the 12 7/8" gap: 12 7/8" body, 13 5/8" over the tabs.
 - **Divider B** for the 9 7/8" gap: 9 7/8" body, 10 5/8" over the tabs.
-- 3/8" thick, 4" tall, tabs 3/8" long and 1" tall, tabs drop into the rail inner-ply slots. Removable; position them anywhere on
+- 3/8" thick, 4" tall, tabs 3/8" long and 1" tall (1 1/2" up from the bottom), tabs drop into the rail
+  inner-ply slots. Removable; position them anywhere on
   the 3/4" slot grid.
 
 ### Part sizes
@@ -108,10 +109,10 @@ are left sharp because the laser cuts them cleanly.
 5. **Dowel holes.** 3, then 5, 1/4" holes; the outer pair were later moved to 5/8" in from the body ends.
 6. **Slot depth follows tab height.** Slot depth is defined as tab height plus a clearance (`SLOT_CLR`,
    currently 0). Tabs and slots started at 2", went to 1 3/4" for nesting, and are now **1"**.
-7. **Two heights (latest change).** Fingered parts 2 1/2", plain parts 4", tops flush. This replaced the
-   single 3.75" strip height. The dowel holes moved from 1" up to mid-spine (3/4" up the inner ply,
-   2 1/4" up the outer ply): at 1" they would have landed inside the fingers of the shorter inner ply,
-   leaving 1/16" of wood beside each hole.
+7. **Two heights (latest change).** Fingered parts 2 1/2", plain parts 4", all standing on the floor, with
+   the tabs of the tall parts moved to slot height (1 1/2" up). This replaced the single 3.75" strip
+   height. The dowel holes moved from 1" up to 3/4" up: at 1" they would have landed inside the fingers of
+   the shorter inner ply, leaving 1/16" of wood beside each hole.
 
 ### Rail deflection check
 *Worked out for the earlier 3.75" geometry. With the 4" outer ply and 2 1/2" inner ply (1" slots) I is about 0.106 in⁴, so the deflections below hold; the 250 lb tab-engagement estimate was not re-derived for the 1" tabs.*
@@ -143,14 +144,15 @@ or bracing is needed.
   | Unit | Left | Right |
   |---|---|---|
   | Band 1 | support, support, rail inner ply (stack of three) | divider A in each of two rows |
-  | Band 2 | rail inner ply × 3 (stack of three) | 2 rows, each an interlocked pair of divider A |
-  | Row 5 | rail outer ply, divider A, divider B (interlocked) | |
-  | Rows 6–8 | rail outer ply, divider B, divider B (interlocked) | |
+  | Band 2 | rail inner ply × 3 (stack of three) | 2 rows, each a pair of divider A |
+  | Row 5 | rail outer ply, divider A, divider B | |
+  | Rows 6–8 | rail outer ply, divider B, divider B | |
 
 - **Gap between rows: 0.214".** The spare height (34" − 2 × 1/4" − 8 × 4" = 1.5") is spread over the 7 gaps.
   The three strips of a fingered stack are spread evenly over the band.
-- **Interlocking:** rail outer plies and dividers alternate 180° along a row so their stepped ends interlock,
-  saving 3/8" per joint. With 1" tabs the tab tip stays 2" clear of the neighbour's notch floor.
+- **No interlocking:** with the tab stubs at mid-height, neighbouring rail outer plies and dividers cannot
+  nest their tabs into each other's notches, so each part takes its full length in a row. There is still
+  room: the tightest plain row is 44 1/4" of parts in 48".
 - **Fingers:** within a stack the fingers face away from each other or at the solid back of the next strip,
   never at another strip's fingers. The fingered strips are not flanked by uncut plain stock any more, so
   the cut order below matters more.

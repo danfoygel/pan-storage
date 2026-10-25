@@ -6,9 +6,10 @@ outer plies, dividers) are 4" tall, tabs and slots are 1". Parts run along the 4
 
 The layout is two "bands" followed by four single rows (stack, top to bottom):
   band 1  (2 plain rows tall): 3 fingered strips (S, S, I) on the left, 2 x divider A on the right
-  band 2  (2 plain rows tall): 3 fingered strips (I, I, I) on the left, 4 x divider A (2 interlocked pairs) on the right
+  band 2  (2 plain rows tall): 3 fingered strips (I, I, I) on the left, 4 x divider A (2 pairs) on the right
   rows 5-8: one rail outer ply per row with dividers (O A B, O B B, O B B, O B B)
 A band is as tall as two plain rows and a gap, which also holds three 2 1/2" strips with room to spare.
+The tabs of the plain parts are stubs at the slot height, so neighbouring plain parts cannot interlock.
 
 usage: python3 nest.py [gap]      (default gap: spread the spare height evenly, rounded down to 0.001")
        SHEET_H=34 sets the sheet length (default 34)
@@ -39,15 +40,14 @@ def make_parts():
     ip = [(u - d.BODY0, v) for u, v in ip]
     out = {
         "S": part("S", "SUPPORT", sp, sr, [], d.W, H_F, False, d.SUP),
-        "I": part("I", "RAIL INNER", ip, ir, [(y - d.BODY0, d.DOWEL_Z_IN) for y in d.DOWEL_YS], d.BODY1 - d.BODY0, H_F, False, d.RIN),
-        "O": part("O", "RAIL OUTER", d.RAIL_PROFILE, {0, 1, 2, 4, 5, 7}, [(y, d.DOWEL_Z_OUT) for y in d.DOWEL_YS], d.D, H_P, True, d.ROUT),
+        "I": part("I", "RAIL INNER", ip, ir, [(y - d.BODY0, d.DOWEL_Z) for y in d.DOWEL_YS], d.BODY1 - d.BODY0, H_F, False, d.RIN),
+        "O": part("O", "RAIL OUTER", d.RAIL_PROFILE, d.RAIL_RND, [(y, d.DOWEL_Z) for y in d.DOWEL_YS], d.D, H_P, True, d.ROUT),
     }
     for k, gi, col in (("A", 0, d.DIVC), ("B", 1, "#c084fc")):
         gl, gr = d.GAPS[gi]
         L = gr - gl + 2 * T
-        ts = H_P - d.TAB_T
-        out[k] = part(k, f"DIVIDER {k}  {d.frac(gr - gl)} gap", [(0, H_P), (L, H_P), (L, ts), (L - T, ts), (L - T, 0), (T, 0), (T, ts), (0, ts)],
-                      {0, 1, 2, 4, 5, 7}, [], L, H_P, True, col)
+        dpts, drnd = d.divider_profile(L)
+        out[k] = part(k, f"DIVIDER {k}  {d.frac(gr - gl)} gap", dpts, drnd, [], L, H_P, True, col)
     return out
 
 
@@ -89,25 +89,18 @@ def put(key, x0, ytop, inv):
     CUTG["holes"] += [f'<circle cx="{x:.4f}" cy="{y:.4f}" r="{d.DOWEL_D / 2}"/>' for x, y in holes]
     VIEW.append(f'<path d="{dd}" fill="{p["col"]}" stroke="#1f2937" stroke-width="0.03" stroke-linejoin="round"/>')
     VIEW.extend(f'<circle cx="{x:.4f}" cy="{y:.4f}" r="{d.DOWEL_D / 2}" fill="#ffffff" stroke="#1f2937" stroke-width="0.02"/>' for x, y in holes)
-    VIEW.append(f'<text x="{x0 + L / 2:.3f}" y="{ytop + (h - 0.5 if key == "O" else h / 2 + 0.15):.3f}" font-size="0.42" text-anchor="middle" fill="#111827">{p["name"].split("  ")[0]}</text>')
+    VIEW.append(f'<text x="{x0 + L / 2:.3f}" y="{ytop + (1.0 if key == "O" else h / 2 + 0.15):.3f}" font-size="0.42" text-anchor="middle" fill="#111827">{p["name"].split("  ")[0]}</text>')
     return x0 + L
 
 
 def row(keys, ytop, x_from=0.0, x_to=SHEET_W):
-    """Parts left to right in [x_from, x_to] with padding = every gap (centred if alone); consecutive tabbed
-    parts alternate 180 degrees and interlock (each tab sits in its neighbour's notch, saving one tab length)."""
+    """Parts left to right in [x_from, x_to] with padding = every gap (centred if alone). The tab stubs sit
+    at mid-height, so neighbouring parts cannot interlock and each counts its full length."""
     parts = [PARTS[k] for k in keys]
-    inter = sum(1 for a, b in zip(parts, parts[1:]) if a["tabbed"] and b["tabbed"])
-    space = (x_to - x_from - sum(p["L"] for p in parts) + T * inter) / (len(parts) + 1)
-    x, flip, prev = x_from + space, False, None
+    space = (x_to - x_from - sum(p["L"] for p in parts)) / (len(parts) + 1)
+    x = x_from + space
     for k, p in zip(keys, parts):
-        if prev is not None:
-            x = prev_end + space - (T if prev["tabbed"] and p["tabbed"] else 0)
-        inv = False
-        if p["tabbed"]:
-            inv, flip = flip, not flip
-        prev_end = put(k, x, ytop, inv)
-        prev = p
+        x = put(k, x, ytop, False) + space
 
 
 def column(keys_dirs, y0, y1, x0):
@@ -127,8 +120,8 @@ def build():
     for i in range(2):
         put("A", 2 * fx + d.W, y + i * (H_P + G), False)
     y += band + G
-    # band 2: I, I, I on the left, two interlocked pairs of divider A on the right
-    pair_w = 2 * PARTS["A"]["L"] - T
+    # band 2: I, I, I on the left, a pair of divider A in each of the two plain rows on the right
+    pair_w = 2 * PARTS["A"]["L"]
     fx = (SHEET_W - (PARTS["I"]["L"] + pair_w)) / 3
     column([("I", "down"), ("I", "down"), ("I", "down")], y, y + band, fx)
     for i in range(2):
@@ -244,7 +237,8 @@ head = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 -1 {SHEET_W + 2:g}
         f'<rect x="-1" y="-1" width="{SHEET_W + 2:g}" height="{SHEET_H + VIEW_OY + 2:g}" fill="#ffffff"/>',
         '<text x="0" y="1.2" font-size="1.5" font-weight="bold" fill="#111827">Pan &amp; Lid Drawer Storage - nested layout</text>',
         f'<text x="0" y="2.6" font-size="0.7" fill="#6b7280">3/8" baltic birch, parts run along the 48" side. Fingered parts (supports, rail inner plies) {H_F:g}" tall, plain parts (rail outer plies, dividers) {H_P:g}" tall; tabs and slots {d.TAB_T:g}".</text>',
-        f'<text x="0" y="3.4" font-size="0.7" fill="#6b7280">Padding {EDGE:g}" minimum at the sheet edges, {G:g}" between rows. Tabbed parts alternate 180 degrees so the tab steps interlock. Sheet {SHEET_W:g}" x {SHEET_H:g}": {desc}.</text>',
+        f'<text x="0" y="3.3" font-size="0.7" fill="#6b7280">Padding {EDGE:g}" minimum at the sheet edges, {G:g}" between rows.</text>',
+        f'<text x="0" y="4.0" font-size="0.7" fill="#6b7280">Sheet {SHEET_W:g}" x {SHEET_H:g}": {desc}.</text>',
         '<text x="0" y="5.6" font-size="0.7" fill="#6b7280">Cut order (cut file colours): 1 red = dowel holes, 2 blue = fingered parts (supports, rail inner plies), 3 green = plain parts (rail outer plies, dividers).</text>']
 if ERRORS:
     head.append(f'<text x="0" y="4.7" font-size="0.8" font-weight="bold" fill="#dc2626">LAYOUT ERRORS ({len(ERRORS)}): ' + "; ".join(m for m, _ in ERRORS[:3]).replace("&", "&amp;").replace('"', "&quot;") + (" ..." if len(ERRORS) > 3 else "") + "</text>")
