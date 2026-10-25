@@ -486,8 +486,11 @@ def draw_assembly(div_box):
     for gi, (gl, gr) in enumerate(GAPS):
         for yc in divider_ys(gi):
             items.append((gl, -yc, "div", gl, gr, yc))
-            items.append((gl - T, 100 - yc, "tab", gl - T, gl, yc))   # each tab is drawn right after the rail it sits in
-            items.append((gr, 100 - yc, "tab", gr, gr + T, yc))
+            # the camera is to the right of the drawer: the left tab (in the inner ply of the rail on its left) is
+            # drawn after that rail, but the right tab sits behind the outer ply of the rail on its right, so it
+            # goes before that rail (back to front in y: larger yc first)
+            items.append((gl - T, 100 - yc, "tab", gl - T, gl, yc))
+            items.append((gr, -100 - yc, "tab", gr, gr + T, yc))
     for it in sorted(items, key=lambda t: (t[0], t[1])):
         if it[2] == "rail":
             rail3(it[3], it[4], it[5])
