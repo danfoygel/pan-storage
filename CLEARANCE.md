@@ -4,8 +4,9 @@ Every place where parts mate and an explicit clearance or tolerance has to be ch
 is what the current model assumes: **nominal sizes everywhere, zero clearance.** The **Decision** column is
 left open until the plywood thickness and laser kerf are measured.
 
-Dimensions below are at the final 3.75" strip height (slot depth and tab height 1 3/4"); at the original
-4" strips they are 1 15/16".
+Dimensions below are for the current geometry: fingered parts (supports, rail inner plies) 2 1/2" tall, plain
+parts (rail outer plies, dividers) 4" tall, slot depth and tab height 1". All tops are flush, so the fingered
+parts hang 1 1/2" above the drawer floor.
 
 ## A. Inputs that affect everything
 
@@ -26,7 +27,7 @@ Dimensions below are at the final 3.75" strip height (slot depth and tab height 
 | # | Interface | Today | Decision |
 |---|---|---|---|
 | C1 | Support slot width vs outer-ply tab thickness (3/8"). | Exact. | |
-| C2 | Support slot depth vs tab height (1 3/4" each). | Exact (`SLOT_CLR = 0` in `drawer.py`). Decide whether the tab should bottom out in the slot or stop short. | |
+| C2 | Support slot depth vs tab height (1" each). | Exact (`SLOT_CLR = 0` in `drawer.py`). Decide whether the tab should bottom out in the slot or stop short. | |
 | C3 | Tab length vs support thickness (3/8"), so the tab end is flush with the drawer wall. | Exact. | |
 | C4 | Rail body length (19 1/4") vs the gap between the supports' inner faces (20" − 2 × 3/8"). Applies to both the inner and outer plies. | Exact. | |
 | C5 | Slot position tolerance across the support, which sets the gaps between rail pairs (12 7/8" and 9 7/8"). | Exact. | |
@@ -47,8 +48,9 @@ Dimensions below are at the final 3.75" strip height (slot depth and tab height 
 | E1 | Rail slot width (3/8") vs divider thickness (3/8"). Sets whether dividers slide in easily. | Exact. | |
 | E2 | Divider tab length vs inner ply thickness. If the tab is longer than the slot is deep, the divider bottoms out on the outer ply. | Exact. | |
 | E3 | Divider overall length vs gap width (12 7/8" and 9 7/8"). This is the total side-to-side play. | Gap + 2 × 3/8", exact. | |
-| E4 | Divider tab height (1 3/4") vs rail slot depth (1 3/4"). | Exact. | |
-| E5 | Divider total height (3.75") vs how it seats. It can rest on the slot floors or on the drawer floor, but it shouldn't do both. | Not decided. | |
+| E4 | Divider tab height (1") vs rail slot depth (1"). | Exact. | |
+| E5 | Divider total height (4") vs how it seats. It stands on the drawer floor with its 1" tabs in the slots, which are 3" above the floor, so the tab bottoms must not touch the slot floors. | Exact: both surfaces are nominally in contact, so one of them will bind. | |
+| E6 | Support height. The supports hang from the outer-ply tabs, resting on the tab bottoms at the slot floors, 1 1/2" above the floor. | Exact. | |
 
 ## F. Process effects that eat into the clearances
 
@@ -67,10 +69,10 @@ through into the dividers.
 | # | Item | Value |
 |---|---|---|
 | G1 | Padding at all four sheet edges (minimum) | 1/4" |
-| G2 | Gap between rows of parts | 0.227" (spare strip space spread over the gaps) |
-| G3 | Gap between parts within a row | at least 1/4"; equalized with the end padding per row |
-| G4 | Vertical gap where interlocked tabs meet a notch | 1/4" |
-| G5 | Minimum clearance around a dowel hole to the part edge | hole radius + half the part gap |
+| G2 | Gap between rows of parts | 0.214" (the spare sheet height spread over the 7 gaps) |
+| G3 | Gap between parts within a row | equalized with the end padding per row |
+| G4 | Clearance where an interlocked tab meets a notch | 2" below the tab, at least 0.214" beside it |
+| G5 | Minimum clearance around a dowel hole to the part edge | hole radius + half the part gap (0.232"); the holes sit mid-spine, 5/8" from the nearest edge |
 
 ## Next step
 

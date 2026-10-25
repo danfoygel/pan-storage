@@ -1,233 +1,57 @@
-"""Nest every part onto 48" x 33" sheets and write layout.svg (preview) + cut_sheetN.svg (1:1, inches).
+"""Nest every part onto one 48" x 34" sheet; write layout_48x34in.svg (preview) + cut_48x34in_sheet1.svg (1:1, inches).
 
-Geometry comes from drawer.py. Parts are 4" strips laid along the 33" side (grain runs across the
-strips, i.e. along the fingers); layout is built as rows then rotated 90 degrees onto the sheet;
-tabbed parts (rail outer ply, dividers) alternate 180 degrees so their tab steps interlock.
+Geometry comes from drawer.py: fingered parts (supports, rail inner plies) are 2 1/2" tall, plain parts (rail
+outer plies, dividers) are 4" tall, tabs and slots are 1". Parts run along the 48" side, so the grain
+(along the 48" side) runs across the strips and along the fingers.
+
+The layout is two "bands" followed by four single rows (stack, top to bottom):
+  band 1  (2 plain rows tall): 3 fingered strips (S, S, I) on the left, 2 x divider A on the right
+  band 2  (2 plain rows tall): 3 fingered strips (I, I, I) on the left, 4 x divider A (2 interlocked pairs) on the right
+  rows 5-8: one rail outer ply per row with dividers (O A B, O B B, O B B, O B B)
+A band is as tall as two plain rows and a gap, which also holds three 2 1/2" strips with room to spare.
+
+usage: python3 nest.py [gap]      (default gap: spread the spare height evenly, rounded down to 0.001")
+       SHEET_H=34 sets the sheet length (default 34)
 """
-import functools
 import math
 import os
 import sys
 
-# usage: python3 nest.py long|short [strip_height [dividers_of_each_size]]
-ORIENT = sys.argv[1] if len(sys.argv) > 1 else "long"
-os.environ["PART_H"] = sys.argv[2] if len(sys.argv) > 2 else "4.0"   # strip height (default: the original 4"); the final design uses 3.75
-
-EDGE = 0.25                     # padding at all four sheet edges (minimum)
-SHEET_W, SHEET_H = 48.0, float(os.environ.get("SHEET_H", "35"))   # sheet as seen: 48 wide, SHEET_H tall
-ROW_LEN, STACK = (SHEET_W, SHEET_H) if ORIENT == "long" else (SHEET_H, SHEET_W)
-# 4th argument: gap between parts in inches, or "auto" = spread the spare strip space over the gaps
-GAP_ARG = sys.argv[4] if len(sys.argv) > 4 else "0.125"
-_H0 = float(os.environ.get("PART_H", "4.0"))
-SPREAD = len(sys.argv) > 5 and sys.argv[5] == "spread"   # 5th argument: spread each row's parts over the row length
-EQUAL = len(sys.argv) > 5 and sys.argv[5] == "equal"     # ... or make the end padding equal the gaps in each row
-ORDER_ROWS = len(sys.argv) > 6 and sys.argv[6] == "order"   # 6th argument: supports in the middle, plain/fingered rows alternating outward
-if GAP_ARG in ("auto", "max"):
-    _n = int((STACK - 2 * EDGE + 0.125 + 1e-9) // (_H0 + 0.125))
-    G = (STACK - 2 * EDGE - _n * _H0) / (_n - 1)                    # use all the spare strip space
-    if GAP_ARG == "auto":
-        G = math.floor(G * 32 + 1e-9) / 32                          # rounded down to 1/32"
-else:
-    G = float(GAP_ARG)
-
-os.environ.setdefault("TAB_T", repr(math.floor((_H0 - G) / 2 * 32 + 1e-9) / 32))
-
 import drawer as d
 
-H = d.PART_H
-T = d.T
-CAP = ROW_LEN - 2 * EDGE + 1e-9
-MAX_ROWS = int((STACK - 2 * EDGE + G + 1e-9) // (H + G))
-# first strip position: centred in the sheet when the gap is "auto", otherwise tight against the near edge
-FIRST = EDGE + ((STACK - 2 * EDGE - (MAX_ROWS * H + (MAX_ROWS - 1) * G)) / 2 if GAP_ARG in ("auto", "max") else 0.0)
-MIN_EACH = int(sys.argv[3]) if len(sys.argv) > 3 else 5   # at least this many dividers of each size
+EDGE = 0.25                     # padding at all four sheet edges (minimum)
+SHEET_W, SHEET_H = 48.0, float(os.environ.get("SHEET_H", "34"))
+T, TAB_R = d.T, d.TAB_R
+H_F, H_P = d.H_FING, d.H_PLAIN
+ROWS = 8                        # plain-row heights in the stack (2 + 2 + 4)
+G = float(sys.argv[1]) if len(sys.argv) > 1 else math.floor((SHEET_H - 2 * EDGE - ROWS * H_P) / (ROWS - 1) * 1000) / 1000
+NEED = {"S": 2, "I": 4, "O": 4, "A": 7, "B": 7}    # parts in the system
 
 
 # ---- parts (profiles in (u along length, v up)) ------------------------------
-def part_support():
-    pts, rnd = d.notched(0, d.W, H, [(s, s + d.SLOT_W) for s in d.SLOTS], d.TAB)
-    return dict(kind="S", name="SUPPORT", pts=pts, rnd=rnd, holes=[], L=d.W, tabbed=False, col=d.SUP)
+def part(kind, name, pts, rnd, holes, L, h, tabbed, col):
+    return dict(kind=kind, name=name, pts=pts, rnd=rnd, holes=holes, L=L, H=h, tabbed=tabbed, col=col)
 
 
-def part_outer():
-    return dict(kind="O", name="RAIL OUTER", pts=d.RAIL_PROFILE, rnd={0, 1, 2, 4, 5, 7},
-                holes=[(y, d.DOWEL_Z) for y in d.DOWEL_YS], L=d.D, tabbed=True, col=d.ROUT)
+def make_parts():
+    sp, sr = d.notched(0, d.W, H_F, [(s, s + d.SLOT_W) for s in d.SLOTS], d.TAB)
+    ip, ir = d.notched(d.BODY0, d.BODY1, H_F, [(y - d.NOTCH_W / 2, y + d.NOTCH_W / 2) for y in d.NOTCH_YS], d.TAB)
+    ip = [(u - d.BODY0, v) for u, v in ip]
+    out = {
+        "S": part("S", "SUPPORT", sp, sr, [], d.W, H_F, False, d.SUP),
+        "I": part("I", "RAIL INNER", ip, ir, [(y - d.BODY0, d.DOWEL_Z_IN) for y in d.DOWEL_YS], d.BODY1 - d.BODY0, H_F, False, d.RIN),
+        "O": part("O", "RAIL OUTER", d.RAIL_PROFILE, {0, 1, 2, 4, 5, 7}, [(y, d.DOWEL_Z_OUT) for y in d.DOWEL_YS], d.D, H_P, True, d.ROUT),
+    }
+    for k, gi, col in (("A", 0, d.DIVC), ("B", 1, "#c084fc")):
+        gl, gr = d.GAPS[gi]
+        L = gr - gl + 2 * T
+        ts = H_P - d.TAB_T
+        out[k] = part(k, f"DIVIDER {k}  {d.frac(gr - gl)} gap", [(0, H_P), (L, H_P), (L, ts), (L - T, ts), (L - T, 0), (T, 0), (T, ts), (0, ts)],
+                      {0, 1, 2, 4, 5, 7}, [], L, H_P, True, col)
+    return out
 
 
-def part_inner():
-    pts, rnd = d.notched(d.BODY0, d.BODY1, H, [(y - d.NOTCH_W / 2, y + d.NOTCH_W / 2) for y in d.NOTCH_YS], d.TAB)
-    pts = [(u - d.BODY0, v) for u, v in pts]
-    return dict(kind="I", name="RAIL INNER", pts=pts, rnd=rnd,
-                holes=[(y - d.BODY0, d.DOWEL_Z) for y in d.DOWEL_YS], L=d.BODY1 - d.BODY0, tabbed=False, col=d.RIN)
-
-
-def part_divider(kind, gap_index, col):
-    gl, gr = d.GAPS[gap_index]
-    g = gr - gl
-    L = g + 2 * T
-    ts = H - d.TAB_T
-    pts = [(0, H), (L, H), (L, ts), (L - T, ts), (L - T, 0), (T, 0), (T, ts), (0, ts)]
-    return dict(kind=kind, name=f"DIVIDER {kind}  {d.frac(g)} gap", pts=pts, rnd={0, 1, 2, 4, 5, 7},
-                holes=[], L=L, tabbed=True, col=col)
-
-
-PARTS = {
-    "S": part_support(), "O": part_outer(), "I": part_inner(),
-    "A": part_divider("A", 0, d.DIVC), "B": part_divider("B", 1, "#c084fc"),
-}
-ORDER = "SIOAB"
-
-
-# ---- rows ---------------------------------------------------------------------
-def row_length(counts):
-    parts = [PARTS[k] for k, n in zip(ORDER, counts) for _ in range(n)]
-    if not parts:
-        return 0
-    tabbed = sum(p["tabbed"] for p in parts)
-    nontabbed = len(parts) - tabbed
-    saved = T * (tabbed - 1) if tabbed > 1 else 0
-    return sum(p["L"] for p in parts) + G * (len(parts) - 1) - saved + (0 if nontabbed <= 2 else 1e9)
-
-
-ROW_TYPES = []
-for c in [(s, i, o, a, b) for s in range(2) for i in range(3) for o in range(3) for a in range(5) for b in range(6)]:
-    if sum(c) and row_length(c) <= CAP:
-        ROW_TYPES.append(c)
-
-
-def pareto(items):
-    """items: {(A, B): rows}; drop dominated entries."""
-    keep = {}
-    for (a, b), rows in items.items():
-        if not any((a2 >= a and b2 >= b and (a2, b2) != (a, b)) for (a2, b2) in items):
-            keep[(a, b)] = rows
-    return keep
-
-
-@functools.lru_cache(maxsize=None)
-def best(rows_left, s, i, o):
-    """Pareto set {(A, B): [row types]} using exactly the needed structural parts in <= rows_left rows."""
-    if s == i == o == 0:
-        res = {(0, 0): ()}
-    else:
-        res = {}
-    if rows_left == 0:
-        return res if (s == i == o == 0) else {}
-    out = dict(res)
-    for t in ROW_TYPES:
-        ts, ti, to, ta, tb = t
-        if ts > s or ti > i or to > o:
-            continue
-        for (a, b), rows in best(rows_left - 1, s - ts, i - ti, o - to).items():
-            key = (a + ta, b + tb)
-            if key not in out:
-                out[key] = (t,) + rows
-    return pareto(out)
-
-
-def pick(options):
-    """Reach MIN_EACH of both divider sizes first, then maximize the total."""
-    return max(options.items(), key=lambda kv: (min(min(kv[0]), MIN_EACH), sum(kv[0])))
-
-
-sheet1_choice = pick(best(MAX_ROWS, 2, 4, 4))
-(A1, B1), rows1 = sheet1_choice
-
-
-def divider_rows(a_need, b_need):
-    for r in range(1, MAX_ROWS + 1):
-        opts = {k: v for k, v in best(r, 0, 0, 0).items() if k[0] >= a_need and k[1] >= b_need}
-        if opts:
-            return pick(opts)
-    raise SystemExit("cannot place the dividers on one extra sheet")
-
-
-sheets = [list(rows1)]
-total_A, total_B = A1, B1
-if min(A1, B1) < MIN_EACH:
-    (A2, B2), rows2 = divider_rows(max(0, MIN_EACH - A1), max(0, MIN_EACH - B1))
-    sheets.append(list(rows2))
-    total_A += A2
-    total_B += B2
-
-
-# ---- row order -----------------------------------------------------------------------
-def order_rows(rows):
-    """Supports in the middle, fingers facing away from each other; outward from there alternate plain
-    rows and fingered rows, so the fragile fingered parts are always flanked by uncut plain stock.
-    Returns [(counts, flip_row), ...] from the top of the layout to the bottom."""
-    sup = [r for r in rows if r[0] > 0]
-    fing = [r for r in rows if r[0] == 0 and r[1] > 0]
-    plain = [r for r in rows if r[0] == 0 and r[1] == 0]
-    half = (len(sup) + 1) // 2
-    out_sides = []
-    for k in (0, 1):
-        pl = plain[k::2]
-        fg = fing[k::2]
-        seq = []
-        for i in range(max(len(pl), len(fg))):   # outward from the supports: plain, fingered, plain, ...
-            if i < len(pl):
-                seq.append((pl[i], False))
-            if i < len(fg):
-                seq.append((fg[i], False))
-        out_sides.append(seq)
-    top = list(reversed(out_sides[0])) + [(r, False) for r in sup[:half]]
-    bottom = [(r, True) for r in sup[half:]] + out_sides[1]
-    return top + bottom
-
-
-sheets = [order_rows(r) if ORDER_ROWS else [(c, False) for c in r] for r in sheets]
-
-# ---- placement ----------------------------------------------------------------
-def _place_row(counts):
-    parts = [PARTS[k] for k, n in zip(ORDER, counts) for _ in range(n)]
-    nt = [p for p in parts if not p["tabbed"]]
-    tb = [p for p in parts if p["tabbed"]]
-    seq = nt[:1] + tb + nt[1:]
-    x, res, flip, prev = EDGE, [], False, None
-    for p in seq:
-        if prev is not None:
-            x = prev_end + G - (T if prev["tabbed"] and p["tabbed"] else 0)
-        inv = False
-        if p["tabbed"]:
-            inv, flip = flip, not flip
-        res.append((p, x, inv))
-        prev, prev_end = p, x + p["L"]
-    if EQUAL:                        # left padding = every gap between parts = right padding
-        inter = sum(1 for (p, _, _), (q, _, _) in zip(res, res[1:]) if p["tabbed"] and q["tabbed"])
-        space = (ROW_LEN - sum(p["L"] for p, _, _ in res) + T * inter) / (len(res) + 1)
-        out, x, prev = [], space, None
-        for p, _, inv in res:
-            if prev is not None:
-                x = prev_end + space - (T if prev["tabbed"] and p["tabbed"] else 0)
-            out.append((p, x, inv))
-            prev, prev_end = p, x + p["L"]
-        return out
-    slack = (ROW_LEN - EDGE) - prev_end
-    if SPREAD and len(res) > 1:      # widen every gap in the row equally so the row ends at the far padding line
-        res = [(p, x + i * slack / (len(res) - 1), inv) for i, (p, x, inv) in enumerate(res)]
-    elif SPREAD:                     # a lone part is centred in its row
-        res = [(p, x + slack / 2, inv) for p, x, inv in res]
-    return res
-
-
-def place_row(counts, flip_row=False):
-    """Positions of one row's parts; flip_row turns the untabbed parts (supports, inner plies) 180 degrees."""
-    res = _place_row(counts)
-    if flip_row:
-        res = [(p, x, (not inv) if not p["tabbed"] else inv) for p, x, inv in res]
-    return res
-
-
-def transform(p, x0, ytop, inv, oy):
-    L = p["L"]
-
-    def tf(u, v):
-        lx, ly = (x0 + L - u, ytop + v) if inv else (x0 + u, ytop + H - v)
-        if ORIENT == "long":
-            return lx, ly + oy
-        return STACK - ly, lx + oy   # rotate the row layout 90 degrees onto the sheet
-    return [tf(*q) for q in p["pts"]], [tf(*h) for h in p["holes"]]
+PARTS = make_parts()
 
 
 def path_d(pts, rounded, r):
@@ -246,33 +70,77 @@ def path_d(pts, rounded, r):
     return " ".join(parts) + " Z"
 
 
-PLACED = []   # parts of the sheet being drawn, for the layout check
+PLACED, VIEW, TALLY = [], [], {}
 CUTG = {"holes": [], "fingers": [], "plain": []}   # cut-file elements by operation
 
 
-def sheet_elements(rows, oy, cut):
-    els, tally = [], {}
-    for ri, (counts, flip_row) in enumerate(rows):
-        ytop = FIRST + ri * (H + G)
-        for p, x0, inv in place_row(counts, flip_row):
-            pts, holes = transform(p, x0, ytop, inv, oy)
-            dd = path_d(pts, p["rnd"], d.TAB_R)
-            if not cut:
-                PLACED.append(dict(name=p["name"], pts=d.rounded_profile(pts, p["rnd"], d.TAB_R, n=6)[0], holes=holes))
-            if cut:
-                CUTG["fingers" if p["kind"] in ("S", "I") else "plain"].append(f'<path d="{dd}"/>')
-                CUTG["holes"] += [f'<circle cx="{x:.4f}" cy="{y:.4f}" r="{d.DOWEL_D / 2}"/>' for x, y in holes]
-            else:
-                els.append(f'<path d="{dd}" fill="{p["col"]}" stroke="#1f2937" stroke-width="0.03" stroke-linejoin="round"/>')
-                els += [f'<circle cx="{x:.4f}" cy="{y:.4f}" r="{d.DOWEL_D / 2}" fill="#ffffff" stroke="#1f2937" stroke-width="0.02"/>' for x, y in holes]
-                if ORIENT == "long":
-                    tx, ty, rot = x0 + p["L"] / 2, oy + ytop + 3.72, ""
-                else:
-                    tx, ty = STACK - (ytop + 3.72), oy + x0 + p["L"] / 2
-                    rot = f' transform="rotate(90 {tx:.3f} {ty:.3f})"'
-                els.append(f'<text x="{tx:.3f}" y="{ty:.3f}" font-size="0.42" text-anchor="middle" fill="#111827"{rot}>{p["name"]}</text>')
-            tally[p["kind"]] = tally.get(p["kind"], 0) + 1
-    return els, tally
+def put(key, x0, ytop, inv):
+    """Place a part with its left edge at x0 and the top of its strip at ytop; inv = turned 180 degrees."""
+    p = PARTS[key]
+    L, h = p["L"], p["H"]
+
+    def tf(u, v):
+        return (x0 + L - u, ytop + v) if inv else (x0 + u, ytop + h - v)
+    pts, holes = [tf(*q) for q in p["pts"]], [tf(*q) for q in p["holes"]]
+    dd = path_d(pts, p["rnd"], TAB_R)
+    PLACED.append(dict(name=p["name"], pts=d.rounded_profile(pts, p["rnd"], TAB_R, n=6)[0], holes=holes))
+    TALLY[key] = TALLY.get(key, 0) + 1
+    CUTG["fingers" if key in "SI" else "plain"].append(f'<path d="{dd}"/>')
+    CUTG["holes"] += [f'<circle cx="{x:.4f}" cy="{y:.4f}" r="{d.DOWEL_D / 2}"/>' for x, y in holes]
+    VIEW.append(f'<path d="{dd}" fill="{p["col"]}" stroke="#1f2937" stroke-width="0.03" stroke-linejoin="round"/>')
+    VIEW.extend(f'<circle cx="{x:.4f}" cy="{y:.4f}" r="{d.DOWEL_D / 2}" fill="#ffffff" stroke="#1f2937" stroke-width="0.02"/>' for x, y in holes)
+    VIEW.append(f'<text x="{x0 + L / 2:.3f}" y="{ytop + (h - 0.5 if key == "O" else h / 2 + 0.15):.3f}" font-size="0.42" text-anchor="middle" fill="#111827">{p["name"].split("  ")[0]}</text>')
+    return x0 + L
+
+
+def row(keys, ytop, x_from=0.0, x_to=SHEET_W):
+    """Parts left to right in [x_from, x_to] with padding = every gap (centred if alone); consecutive tabbed
+    parts alternate 180 degrees and interlock (each tab sits in its neighbour's notch, saving one tab length)."""
+    parts = [PARTS[k] for k in keys]
+    inter = sum(1 for a, b in zip(parts, parts[1:]) if a["tabbed"] and b["tabbed"])
+    space = (x_to - x_from - sum(p["L"] for p in parts) + T * inter) / (len(parts) + 1)
+    x, flip, prev = x_from + space, False, None
+    for k, p in zip(keys, parts):
+        if prev is not None:
+            x = prev_end + space - (T if prev["tabbed"] and p["tabbed"] else 0)
+        inv = False
+        if p["tabbed"]:
+            inv, flip = flip, not flip
+        prev_end = put(k, x, ytop, inv)
+        prev = p
+
+
+def column(keys_dirs, y0, y1, x0):
+    """Stack fingered strips between y0 and y1 with equal gaps; 'up' = fingers toward the top of the sheet.
+    Fingers never face fingers: they point away, or at the solid back of the neighbouring strip."""
+    gap = (y1 - y0 - H_F * len(keys_dirs)) / (len(keys_dirs) - 1)
+    for i, (k, dr) in enumerate(keys_dirs):
+        put(k, x0, y0 + i * (H_F + gap), dr == "down")
+
+
+def build():
+    y = EDGE
+    band = 2 * H_P + G
+    # band 1: S, S, I stacked on the left, divider A in each of the two plain rows on the right
+    fx = (SHEET_W - (d.W + PARTS["A"]["L"])) / 3
+    column([("S", "up"), ("S", "up"), ("I", "up")], y, y + band, fx)
+    for i in range(2):
+        put("A", 2 * fx + d.W, y + i * (H_P + G), False)
+    y += band + G
+    # band 2: I, I, I on the left, two interlocked pairs of divider A on the right
+    pair_w = 2 * PARTS["A"]["L"] - T
+    fx = (SHEET_W - (PARTS["I"]["L"] + pair_w)) / 3
+    column([("I", "down"), ("I", "down"), ("I", "down")], y, y + band, fx)
+    for i in range(2):
+        row(["A", "A"], y + i * (H_P + G), fx + PARTS["I"]["L"], SHEET_W)
+    y += band + G
+    for keys in (["O", "A", "B"], ["O", "B", "B"], ["O", "B", "B"], ["O", "B", "B"]):
+        row(keys, y)
+        y += H_P + G
+    return y - G + EDGE    # stack height used, including the bottom padding
+
+
+STACK_USED = build()
 
 
 # ---- layout check: overlaps, spacing, edge padding ---------------------------------
@@ -354,54 +222,38 @@ def check_sheet(placed, oy, label):
 
 
 # ---- write files ---------------------------------------------------------------
-TAG = (ORIENT if H == 4.0 else f"{ORIENT}_extra_row") + (f"_h{H:g}_gap{G:.3f}" if GAP_ARG in ("auto", "max") else "") + ("_spread" if SPREAD else "") + ("_equal" if EQUAL else "") + (f"_{SHEET_H:g}in" if SHEET_H != 35.0 else "")
-GAP_Y = 6.0
-tot = {}
-view = []
-ERRORS, MIN_GAP, MIN_EDGE = [], math.inf, math.inf
-for si, rows in enumerate(sheets):
-    oy = 8 + si * (SHEET_H + GAP_Y)
-    view.append(f'<rect x="0" y="{oy}" width="{SHEET_W}" height="{SHEET_H}" fill="#fbf7ee" stroke="#6b7280" stroke-width="0.08"/>')
-    PLACED.clear()
-    els, tally = sheet_elements(rows, oy, False)
-    view += els
-    e, g_, ed = check_sheet(PLACED, oy, f"sheet {si + 1}")
-    ERRORS += e
-    MIN_GAP, MIN_EDGE = min(MIN_GAP, g_), min(MIN_EDGE, ed)
-    for msg, (mx, my) in e:
-        view.append(f'<circle cx="{mx:.3f}" cy="{my:.3f}" r="0.45" fill="#ef4444" fill-opacity="0.35" stroke="#dc2626" stroke-width="0.12"/>')
-    desc = ", ".join("%d x %s" % (n, PARTS[k]["name"].split("  ")[0]) for k, n in sorted(tally.items(), key=lambda kv: ORDER.index(kv[0])))
-    view.append(f'<text x="0" y="{oy - 0.6}" font-size="0.9" font-weight="bold" fill="#111827">Sheet {si + 1} of {len(sheets)} - 48" x {SHEET_H:g}"   ({desc})</text>')
-    for k, n in tally.items():
-        tot[k] = tot.get(k, 0) + n
-    cut = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{SHEET_W}in" height="{SHEET_H}in" viewBox="0 0 {SHEET_W} {SHEET_H}">']
-    for g in CUTG.values():
-        g.clear()
-    sheet_elements(rows, 0, True)
-    for gid, key, color in (("1_dowel_holes", "holes", "#ff0000"), ("2_fingered_parts_supports_and_rail_inner_plies", "fingers", "#0000ff"),
-                            ("3_plain_parts_rail_outer_plies_and_dividers", "plain", "#008000")):
-        cut.append(f'<g id="{gid}" fill="none" stroke="{color}" stroke-width="0.01">')
-        cut += CUTG[key]
-        cut.append("</g>")
-    cut.append("</svg>")
-    open(f"cut_{TAG}_sheet{si + 1}.svg", "w").write("\n".join(cut))
+ERRORS, MIN_GAP, MIN_EDGE = check_sheet(PLACED, 0, "sheet")
+if TALLY != NEED:
+    ERRORS.append((f"part counts {TALLY} do not match what the system needs {NEED}", (0, 0)))
+VIEW_OY = 8
+for msg, (mx, my) in ERRORS:
+    VIEW.append(f'<circle cx="{mx:.3f}" cy="{my:.3f}" r="0.45" fill="#ef4444" fill-opacity="0.35" stroke="#dc2626" stroke-width="0.12"/>')
 
-H_TOTAL = 8 + len(sheets) * (SHEET_H + GAP_Y)
-head = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 -1 {SHEET_W + 2} {H_TOTAL}" font-family="Helvetica, Arial, sans-serif">',
-        f'<rect x="-1" y="-1" width="{SHEET_W + 2}" height="{H_TOTAL}" fill="#ffffff"/>',
+cut = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{SHEET_W:g}in" height="{SHEET_H:g}in" viewBox="0 0 {SHEET_W:g} {SHEET_H:g}">']
+for gid, key, color in (("1_dowel_holes", "holes", "#ff0000"), ("2_fingered_parts_supports_and_rail_inner_plies", "fingers", "#0000ff"),
+                        ("3_plain_parts_rail_outer_plies_and_dividers", "plain", "#008000")):
+    cut.append(f'<g id="{gid}" fill="none" stroke="{color}" stroke-width="0.01">')
+    cut += CUTG[key]
+    cut.append("</g>")
+cut.append("</svg>")
+TAG = f"{SHEET_W:g}x{SHEET_H:g}in"
+open(f"cut_{TAG}_sheet1.svg", "w").write("\n".join(cut))
+
+desc = ", ".join(f"{TALLY[k]} x {PARTS[k]['name'].split('  ')[0]}" for k in "SIOAB")
+head = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 -1 {SHEET_W + 2:g} {SHEET_H + VIEW_OY + 2:g}" font-family="Helvetica, Arial, sans-serif">',
+        f'<rect x="-1" y="-1" width="{SHEET_W + 2:g}" height="{SHEET_H + VIEW_OY + 2:g}" fill="#ffffff"/>',
         '<text x="0" y="1.2" font-size="1.5" font-weight="bold" fill="#111827">Pan &amp; Lid Drawer Storage - nested layout</text>',
-        f'<text x="0" y="2.6" font-size="0.7" fill="#6b7280">3/8" baltic birch, parts run along the {"48" if ORIENT == "long" else "35"} side. Padding {EDGE:g}" minimum at the sheet edges ({FIRST:.3f}" at the near edges of the strips), {G:g}" between parts; part height {H:g}" ({MAX_ROWS} rows). Tab height {d.TAB_T:g}". Tabbed parts alternate 180 degrees so the tab steps interlock.</text>',
-        f'<text x="0" y="3.6" font-size="0.7" fill="#6b7280">Totals: {tot.get("S", 0)} supports, {tot.get("O", 0)} rail outer plies, {tot.get("I", 0)} rail inner plies, '
-        f'{total_A} divider A ({d.frac(d.GAPS[0][1] - d.GAPS[0][0])} gap), {total_B} divider B ({d.frac(d.GAPS[1][1] - d.GAPS[1][0])} gap).</text>',
+        f'<text x="0" y="2.6" font-size="0.7" fill="#6b7280">3/8" baltic birch, parts run along the 48" side. Fingered parts (supports, rail inner plies) {H_F:g}" tall, plain parts (rail outer plies, dividers) {H_P:g}" tall; tabs and slots {d.TAB_T:g}".</text>',
+        f'<text x="0" y="3.4" font-size="0.7" fill="#6b7280">Padding {EDGE:g}" minimum at the sheet edges, {G:g}" between rows. Tabbed parts alternate 180 degrees so the tab steps interlock. Sheet {SHEET_W:g}" x {SHEET_H:g}": {desc}.</text>',
         '<text x="0" y="5.6" font-size="0.7" fill="#6b7280">Cut order (cut file colours): 1 red = dowel holes, 2 blue = fingered parts (supports, rail inner plies), 3 green = plain parts (rail outer plies, dividers).</text>']
 if ERRORS:
     head.append(f'<text x="0" y="4.7" font-size="0.8" font-weight="bold" fill="#dc2626">LAYOUT ERRORS ({len(ERRORS)}): ' + "; ".join(m for m, _ in ERRORS[:3]).replace("&", "&amp;").replace('"', "&quot;") + (" ..." if len(ERRORS) > 3 else "") + "</text>")
 else:
     head.append(f'<text x="0" y="4.7" font-size="0.8" font-weight="bold" fill="#15803d">Layout check passed: no overlaps; smallest gap between parts {MIN_GAP:.3f}&quot; (min {G:g}&quot;), smallest edge padding {MIN_EDGE:.3f}&quot; (min {EDGE:g}&quot;).</text>')
-open(f"layout_{TAG}.svg", "w").write("\n".join(head + view + ["</svg>"]))
-print("sheets:", len(sheets), "totals:", tot, "dividers A/B:", total_A, total_B)
-for si, rows in enumerate(sheets):
-    print(f"sheet {si + 1}:", [dict(zip(ORDER, r)) | ({"flipped": True} if f else {}) for r, f in rows])
+sheet = [f'<g transform="translate(0 {VIEW_OY})">', f'<rect x="0" y="0" width="{SHEET_W:g}" height="{SHEET_H:g}" fill="#fbf7ee" stroke="#6b7280" stroke-width="0.08"/>'] + VIEW + ["</g>"]
+open(f"layout_{TAG}.svg", "w").write("\n".join(head + sheet + ["</svg>"]))
+print("totals:", {k: TALLY[k] for k in "SIOAB"})
+print(f"stack used {STACK_USED:.3f}\" of {SHEET_H:g}\" (bottom padding {SHEET_H - STACK_USED + EDGE:.3f}\")")
 if ERRORS:
     print(f"LAYOUT ERRORS ({len(ERRORS)}):")
     for m, _ in ERRORS:

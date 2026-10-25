@@ -1,13 +1,9 @@
 """Write perspective.svg: just the 3D view of the finished assembly, with a birch plywood look.
 
-Reuses the geometry and 3D drawing code from drawer.py (final 3.75" strips, 1 3/4" tabs and slots) and
+Reuses the geometry and 3D drawing code from drawer.py (2 1/2" fingered parts, 4" plain parts, 1" tabs and slots) and
 adds veneer grain on the broad faces and the layered plies on the cut edges.
 """
 import math
-import os
-
-os.environ["PART_H"] = "3.75"     # final strip height; drawer.py then leaves drawer.svg alone
-os.environ["TAB_T"] = "1.75"
 
 import drawer as d
 
@@ -120,7 +116,7 @@ for it in sorted(items, key=lambda t: (t[0], t[1])):
         d.rail3(it[3], it[4], it[5])
     else:
         gl, gr, yc = it[3], it[4], it[5]
-        d.prism([(gl, 0), (gr, 0), (gr, d.PART_H), (gl, d.PART_H)], {0, 1}, "xz", yc - d.T / 2, yc + d.T / 2, d.DIVC)
+        d.prism([(gl, 0), (gr, 0), (gr, d.H_PLAIN), (gl, d.H_PLAIN)], {0, 1}, "xz", yc - d.T / 2, yc + d.T / 2, d.DIVC)
 d.support3(0, d.T)
 d.add("</svg>")
 
