@@ -9,7 +9,7 @@ The layout is two "bands" followed by four single rows (stack, top to bottom):
   band 2  (2 plain rows tall): 3 fingered strips (I, I, I) on the left, 4 x divider A (2 pairs) on the right
   rows 5-8: one rail outer ply per row with dividers (O A B, O B B, O B B, O B B)
 A band is as tall as two plain rows and a gap, which also holds three 2 1/2" strips with room to spare.
-The tabs of the plain parts are stubs at the slot height, so neighbouring plain parts cannot interlock.
+The tabs of the plain parts run from the slot floor to the top, taller than the notch beside them, so neighbouring plain parts cannot interlock.
 
 usage: python3 nest.py [gap]      (default gap: spread the spare height evenly, rounded down to 0.001")
        SHEET_H=34 sets the sheet length (default 34)
@@ -94,8 +94,8 @@ def put(key, x0, ytop, inv):
 
 
 def row(keys, ytop, x_from=0.0, x_to=SHEET_W):
-    """Parts left to right in [x_from, x_to] with padding = every gap (centred if alone). The tab stubs sit
-    at mid-height, so neighbouring parts cannot interlock and each counts its full length."""
+    """Parts left to right in [x_from, x_to] with padding = every gap (centred if alone). The tabs reach
+    from the slot floor to the top, so neighbouring parts cannot interlock and each counts its full length."""
     parts = [PARTS[k] for k in keys]
     space = (x_to - x_from - sum(p["L"] for p in parts)) / (len(parts) + 1)
     x = x_from + space
@@ -237,13 +237,13 @@ head = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 -1 {SHEET_W + 2:g}
         f'<rect x="-1" y="-1" width="{SHEET_W + 2:g}" height="{SHEET_H + VIEW_OY + 2:g}" fill="#ffffff"/>',
         '<text x="0" y="1.2" font-size="1.5" font-weight="bold" fill="#111827">Pan &amp; Lid Drawer Storage - nested layout</text>',
         f'<text x="0" y="2.6" font-size="0.7" fill="#6b7280">3/8" baltic birch, parts run along the 48" side. Fingered parts (supports, rail inner plies) {H_F:g}" tall, plain parts (rail outer plies, dividers) {H_P:g}" tall; tabs and slots {d.TAB_T:g}".</text>',
-        f'<text x="0" y="3.3" font-size="0.7" fill="#6b7280">Padding {EDGE:g}" minimum at the sheet edges, {G:g}" between rows.</text>',
-        f'<text x="0" y="4.0" font-size="0.7" fill="#6b7280">Sheet {SHEET_W:g}" x {SHEET_H:g}": {desc}.</text>',
-        '<text x="0" y="5.6" font-size="0.7" fill="#6b7280">Cut order (cut file colours): 1 red = dowel holes, 2 blue = fingered parts (supports, rail inner plies), 3 green = plain parts (rail outer plies, dividers).</text>']
+        f'<text x="0" y="3.2" font-size="0.7" fill="#6b7280">Padding {EDGE:g}" minimum at the sheet edges, {G:g}" between rows.</text>',
+        f'<text x="0" y="3.9" font-size="0.7" fill="#6b7280">Sheet {SHEET_W:g}" x {SHEET_H:g}": {desc}.</text>',
+        '<text x="0" y="5.8" font-size="0.7" fill="#6b7280">Cut order (cut file colours): 1 red = dowel holes, 2 blue = fingered parts (supports, rail inner plies), 3 green = plain parts (rail outer plies, dividers).</text>']
 if ERRORS:
-    head.append(f'<text x="0" y="4.7" font-size="0.8" font-weight="bold" fill="#dc2626">LAYOUT ERRORS ({len(ERRORS)}): ' + "; ".join(m for m, _ in ERRORS[:3]).replace("&", "&amp;").replace('"', "&quot;") + (" ..." if len(ERRORS) > 3 else "") + "</text>")
+    head.append(f'<text x="0" y="4.8" font-size="0.8" font-weight="bold" fill="#dc2626">LAYOUT ERRORS ({len(ERRORS)}): ' + "; ".join(m for m, _ in ERRORS[:3]).replace("&", "&amp;").replace('"', "&quot;") + (" ..." if len(ERRORS) > 3 else "") + "</text>")
 else:
-    head.append(f'<text x="0" y="4.7" font-size="0.8" font-weight="bold" fill="#15803d">Layout check passed: no overlaps; smallest gap between parts {MIN_GAP:.3f}&quot; (min {G:g}&quot;), smallest edge padding {MIN_EDGE:.3f}&quot; (min {EDGE:g}&quot;).</text>')
+    head.append(f'<text x="0" y="4.8" font-size="0.8" font-weight="bold" fill="#15803d">Layout check passed: no overlaps; smallest gap between parts {MIN_GAP:.3f}&quot; (min {G:g}&quot;), smallest edge padding {MIN_EDGE:.3f}&quot; (min {EDGE:g}&quot;).</text>')
 sheet = [f'<g transform="translate(0 {VIEW_OY})">', f'<rect x="0" y="0" width="{SHEET_W:g}" height="{SHEET_H:g}" fill="#fbf7ee" stroke="#6b7280" stroke-width="0.08"/>'] + VIEW + ["</g>"]
 open(f"layout_{TAG}.svg", "w").write("\n".join(head + sheet + ["</svg>"]))
 print("totals:", {k: TALLY[k] for k in "SIOAB"})

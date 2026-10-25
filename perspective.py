@@ -104,20 +104,7 @@ d.add(f'<polygon points="{pts_attr([(x + 10, y + 22) for x, y in sh])}" fill="#1
 d.drawer_box()
 
 # assembly, back to front
-d.support3(d.D - d.T, d.D)
-items = []
-for i, (xl, side, _) in enumerate(d.RAILS):
-    items.append((xl, 0, "rail", xl, side, d.divider_ys(i // 2)))
-for gi, (gl, gr) in enumerate(d.GAPS):
-    for yc in d.divider_ys(gi):
-        items.append((gl, -yc, "div", gl, gr, yc))
-for it in sorted(items, key=lambda t: (t[0], t[1])):
-    if it[2] == "rail":
-        d.rail3(it[3], it[4], it[5])
-    else:
-        gl, gr, yc = it[3], it[4], it[5]
-        d.prism([(gl, 0), (gr, 0), (gr, d.H_PLAIN), (gl, d.H_PLAIN)], {0, 1}, "xz", yc - d.T / 2, yc + d.T / 2, d.DIVC)
-d.support3(0, d.T)
+d.draw_assembly(lambda x0, x1, y0, y1, z0, z1, rnd: d.prism([(x0, z0), (x1, z0), (x1, z1), (x0, z1)], rnd, "xz", y0, y1, d.DIVC))
 d.add("</svg>")
 
 open("perspective.svg", "w").write("\n".join(d.out))

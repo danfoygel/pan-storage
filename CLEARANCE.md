@@ -6,7 +6,7 @@ left open until the plywood thickness and laser kerf are measured.
 
 Dimensions below are for the current geometry: fingered parts (supports, rail inner plies) 2 1/2" tall, plain
 parts (rail outer plies, dividers) 4" tall, slot depth and tab height 1". Everything stands on the drawer
-floor; the tabs of the tall parts are 1" stubs 1 1/2" up, level with the slots.
+floor; the tabs of the tall parts run from the slot floor (1 1/2" up) to the top of the part, so 1" of each tab sits in a slot.
 
 ## A. Inputs that affect everything
 
@@ -70,7 +70,7 @@ through into the dividers.
 | G1 | Padding at all four sheet edges (minimum) | 1/4" |
 | G2 | Gap between rows of parts | 0.214" (the spare sheet height spread over the 7 gaps) |
 | G3 | Gap between parts within a row | equalized with the end padding per row |
-| G4 | Tab stubs on neighbouring plain parts | not interlocked; at least the row gap apart |
+| G4 | Tabs on neighbouring plain parts | not interlocked; at least the row gap apart |
 | G5 | Minimum clearance around a dowel hole to the part edge | hole radius + half the part gap (0.232"); the holes sit mid-spine, 5/8" from the nearest edge on the inner ply |
 
 ## Next step
