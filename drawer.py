@@ -377,8 +377,9 @@ def rounded_profile(pts, rounded, r, n=4):
 FACE_HOOK = None   # optional callback(kind, px_points, extra) for each prism face; perspective.py uses it for the wood look
 
 
-def prism(profile, rounded, plane, off0, off1, col, skip_x_right=False, skip_top=False):
-    """Extrude a (u, v) profile: plane 'yz' extrudes along +x, 'xz' along +y."""
+def prism(profile, rounded, plane, off0, off1, col, skip_x_right=False, skip_top=False, open_v=None):
+    """Extrude a (u, v) profile: plane 'yz' extrudes along +x, 'xz' along +y. open_v: don't outline the end faces along
+    the horizontal edges at this v (where the part continues into another one drawn as part of the same piece)."""
     pts, smooth = rounded_profile(profile, rounded, TAB_R)
     m = len(pts)
     area = sum(pts[i][0] * pts[(i + 1) % m][1] - pts[(i + 1) % m][0] * pts[i][1] for i in range(m))
@@ -396,6 +397,10 @@ def prism(profile, rounded, plane, off0, off1, col, skip_x_right=False, skip_top
     def bright(n):
         return min(1.0, .7 + .3 * max(n[2], 0) + .15 * max(-n[1], 0))
 
+    # camera direction, to draw the side faces far to near (the profile may be concave: a tab can hide the end of
+    # the body behind it)
+    cam_dir = [CAM[k] - (W / 2, D / 2, H / 2)[k] for k in range(3)]
+    side = []
     for i in range(m):
         p, q = pts[i], pts[(i + 1) % m]
         du, dv = q[0] - p[0], q[1] - p[1]
@@ -403,12 +408,16 @@ def prism(profile, rounded, plane, off0, off1, col, skip_x_right=False, skip_top
         if l < 1e-9:
             continue
         n = nrm(sgn * dv / l, -sgn * du / l)
-        if not visible(n, to3((p[0] + q[0]) / 2, (p[1] + q[1]) / 2, (off0 + off1) / 2)):
+        mid = to3((p[0] + q[0]) / 2, (p[1] + q[1]) / 2, (off0 + off1) / 2)
+        if not visible(n, mid):
             continue
         if skip_x_right and n[0] > 0.99:
             continue
         if skip_top and n[2] > 0.99:
             continue
+        side.append((sum(mid[k] * cam_dir[k] for k in range(3)), i, n))
+    for _, i, n in sorted(side):
+        p, q = pts[i], pts[(i + 1) % m]
         c = shade(col, bright(n))
         quad = [P(*to3(*p, off0)), P(*to3(*q, off0)), P(*to3(*q, off1)), P(*to3(*p, off1))]
         poly(quad, c, c if smooth[i] else LINE, 0.6 if smooth[i] else 0.8)
@@ -418,36 +427,114 @@ def prism(profile, rounded, plane, off0, off1, col, skip_x_right=False, skip_top
     for n, off in (((-axis[0], -axis[1], 0), off0), (axis, off1)):
         if visible(n, to3(pts[0][0], pts[0][1], off)):
             cap = [P(*to3(*p, off)) for p in pts]
-            poly(cap, shade(col, bright(n)), LINE, 0.8)
+            if open_v is None:
+                poly(cap, shade(col, bright(n)), LINE, 0.8)
+            else:
+                c = shade(col, bright(n))
+                poly(cap, c, c, 0.6)
+                omit = [abs(pts[i][1] - open_v) < 1e-9 and abs(pts[(i + 1) % m][1] - open_v) < 1e-9 for i in range(m)]
+                start = next(i for i in range(m) if omit[i]) + 1   # walk the outline from just after an omitted edge
+                run = [cap[start % m]]
+                for k in range(m):
+                    i = (start + k) % m
+                    if omit[i]:
+                        break
+                    run.append(cap[(i + 1) % m])
+                add(f'<polyline points="{" ".join(f"{a:.1f},{b:.1f}" for a, b in run)}" fill="none" stroke="{LINE}" '
+                    f'stroke-width="0.8" stroke-linejoin="round" stroke-linecap="round"/>')
             if FACE_HOOK:
                 FACE_HOOK("cap", cap, plane)
 
 
-def support3(y0, y1):
-    zf = H_FING - TAB   # slot floor height
-    prism([(0, 0), (W, 0), (W, zf), (0, zf)], {0, 1}, "xz", y0, y1, SUP, skip_top=True)
-    for sx in SLOTS:  # slot floors
-        if sx not in USED:
-            face([(sx, y0, zf), (sx + SLOT_W, y0, zf), (sx + SLOT_W, y1, zf), (sx, y1, zf)], shade(SUP, .6))
+def slot_floor(sx, y0, y1, zf):
+    """The floor of a slot is a cut edge of the support, drawn like the edges of the rails (plies visible)."""
+    quad = [P(sx, y0, zf), P(sx + SLOT_W, y0, zf), P(sx + SLOT_W, y1, zf), P(sx, y1, zf)]
+    poly(quad, shade(SUP, 1.0), LINE, 0.8)
+    if FACE_HOOK:
+        FACE_HOOK("edge", quad, False)
+
+
+def support_walls():
+    """(left, right) x of each wall of a support: the stretches between the slots, above the slot floor."""
     edges = [0.0]
     for sx in SLOTS:
         edges += [sx, sx + SLOT_W]
     edges.append(W)
-    for a, b in zip(edges[0::2], edges[1::2]):
-        # a wall next to a used slot is hidden by the rail
-        hidden = any(abs(b - sx) < 1e-9 and sx in USED for sx in SLOTS)
-        rnd = {2, 3}
-        prism([(a, zf), (b, zf), (b, H_FING), (a, H_FING)], rnd, "xz", y0, y1, SUP, skip_x_right=hidden)
+    return list(zip(edges[0::2], edges[1::2]))
+
+
+def wall3(y0, y1, a, b, hidden=False):
+    zf = H_FING - TAB   # slot floor height
+    prism([(a, zf), (b, zf), (b, H_FING), (a, H_FING)], {2, 3}, "xz", y0, y1, SUP, skip_x_right=hidden, open_v=zf)
+
+
+def rail_wall(sx, left):
+    """The wall of a support to the left / right of the used slot at sx."""
+    return next((a, b) for a, b in support_walls() if (abs(b - sx) < 1e-9 if left else abs(a - sx - SLOT_W) < 1e-9))
+
+
+def support_floors(y0, y1, used):
+    """Slot floors of a support, of the slots that hold a rail's tab (used) or not. A used slot's floor is under the
+    tab, but shows at the tab's rounded corner."""
+    for sx in SLOTS:
+        if (sx in USED) == used:
+            slot_floor(sx, y0, y1, H_FING - TAB)
+
+
+def support3(y0, y1):
+    """The support without its slot floors and the walls next to used slots: rail3 draws those in the right order
+    around the rail's tab."""
+    zf = H_FING - TAB   # slot floor height
+    prism([(0, 0), (W, 0), (W, zf), (0, zf)], {0, 1}, "xz", y0, y1, SUP, skip_top=True, open_v=zf)
+    for sx in SLOTS:   # the base is outlined only along the slots, where its top edge is real
+        a, b = P(sx, y0, zf), P(sx + SLOT_W, y0, zf)
+        line(a[0], a[1], b[0], b[1], LINE, 0.8)
+    for a, b in support_walls():
+        if not any(abs(b - sx) < 1e-9 or abs(a - sx - SLOT_W) < 1e-9 for sx in USED):
+            wall3(y0, y1, a, b)
 
 
 def rail3(xl, side, ys):
+    """One rail with the walls of both supports on either side of its tabs. The tab stands in the slot, in front of
+    the wall to its left and behind the wall to its right (the camera is to the right); the wall to the right of the
+    slot also has to be drawn after the outer ply's tab but before the inner ply (back support) / after it (front)."""
     outer, inner = rail_halves(xl, side)
-    for x0, x1, col in sorted([outer, inner]):
-        if (x0, x1, col) == outer:   # outer ply has the end tabs
+    sx = xl if side == "L" else xl + T
+    lw, rw = rail_wall(sx, True), rail_wall(sx, False)
+
+    def left_wall(y0, y1):
+        wall3(y0, y1, *lw, hidden=True)
+
+    def right_wall(y0, y1):
+        wall3(y0, y1, *rw)
+
+    def ply(p):
+        x0, x1, col = p
+        if p == outer:   # outer ply has the end tabs
             prism(RAIL_PROFILE, RAIL_RND, "yz", x0, x1, col)
-        else:                        # inner ply stops at the supports; slots are real geometry
+        else:            # inner ply stops at the supports; slots are real geometry
             prof, rnd = notched(BODY0, BODY1, H_FING, [(yc - NOTCH_W / 2, yc + NOTCH_W / 2) for yc in NOTCH_YS], TAB)
             prism(prof, rnd, "yz", x0, x1, col)
+
+    back, front = (D - T, D), (0, T)
+    left_wall(*back)
+    if side == "L":   # outer ply first, then the inner ply, which is in front of the back wall to the right of the slot
+        left_wall(*front)
+        ply(outer)
+        right_wall(*back)
+        ply(inner)
+    else:             # inner ply first: it is behind the front wall to the left of the slot
+        ply(inner)
+        left_wall(*front)
+        ply(outer)
+        right_wall(*back)
+    # the floor of the front slot goes over the end of the rail's body behind the support, but not over the tab
+    add(f'<clipPath id="floor{len(out)}"><path clip-rule="evenodd" d="M-1e5,-1e5 H1e5 V1e5 H-1e5 Z '
+        f'{svg_path(front_tab_outline(sx))}"/></clipPath>')
+    add(f'<g clip-path="url(#floor{len(out) - 1})">')
+    slot_floor(sx, *front, H_FING - TAB)
+    add("</g>")
+    right_wall(*front)
 
 
 BOX_EDGE = "#1f2937"
@@ -479,33 +566,86 @@ def drawer_box():
 text(box_x, py - 22, "PERSPECTIVE (front and right walls omitted for clarity)", 16, "start", weight="bold")
 drawer_box()
 
-def draw_assembly(div_box):
-    """Back to front: supports, rails and dividers. div_box(x0, x1, y0, y1, z0, z1, rounded) draws one block of a
-    divider (its body, or one of its two tabs, which stand in the rail slots and rise above the inner plies)."""
+def convex_hull(pts):
+    pts = sorted(set(pts))
+    hull = []
+    for seq in (pts, pts[::-1]):   # monotone chain
+        part = []
+        for p in seq:
+            while len(part) >= 2 and ((part[-1][0] - part[-2][0]) * (p[1] - part[-2][1])
+                                      - (part[-1][1] - part[-2][1]) * (p[0] - part[-2][0])) <= 0:
+                part.pop()
+            part.append(p)
+        hull += part[:-1]
+    return hull
+
+
+def front_finger_outline(gl, yc):
+    """Screen outline of the finger of the left rail's inner ply directly in front of the divider slot at yc,
+    from the slot floor up (the part that can hide the divider's tab)."""
+    prev = [y for y in NOTCH_YS if y < yc - 1e-9]
+    y0 = prev[-1] + NOTCH_W / 2 if prev else BODY0
+    y1 = yc - NOTCH_W / 2
+    prof, _ = rounded_profile([(y0, Z_TAB), (y1, Z_TAB), (y1, H_FING), (y0, H_FING)], {2, 3}, TAB_R)
+    return convex_hull([P(x, y, z) for x in (gl - T, gl) for y, z in prof])
+
+
+def wall_outline(a, b, y0, y1):
+    """Screen outline of a support wall (tooth) between x = a and b, from the slot floor up."""
+    zf = H_FING - TAB
+    prof, _ = rounded_profile([(a, zf), (b, zf), (b, H_FING), (a, H_FING)], {2, 3}, TAB_R)
+    return convex_hull([P(x, y, z) for y in (y0, y1) for x, z in prof])
+
+
+def front_tab_outline(sx):
+    """Screen outline of the front end tab of the rail's outer ply standing in the support slot at sx."""
+    prof, _ = rounded_profile([(0, Z_TAB), (BODY0, Z_TAB), (BODY0, H_PLAIN), (0, H_PLAIN)], {0, 3}, TAB_R)
+    return convex_hull([P(x, y, z) for x in (sx, sx + SLOT_W) for y, z in prof])
+
+
+def svg_path(pts):
+    return "M" + " L".join(f"{x:.2f},{y:.2f}" for x, y in pts) + " Z"
+
+
+def draw_assembly():
+    """Back to front: supports, rails and dividers. Each divider is drawn as one piece: its body and the two tabs
+    that stand in the rail slots (and rise above the inner plies) are a single extruded profile."""
+    support_floors(D - T, D, True)
+    support_floors(D - T, D, False)
     support3(D - T, D)
     items = []
     for i, (xl, side, _) in enumerate(RAILS):
         items.append((xl, 0, "rail", xl, side, divider_ys(i // 2)))
     for gi, (gl, gr) in enumerate(GAPS):
         for yc in divider_ys(gi):
+            # sorted by the body's left edge: the left tab is drawn after the rail on its left, and the right tab
+            # (which sits behind the outer ply of the rail on its right, the camera being to the right) before that
+            # rail; back to front in y: larger yc first
             items.append((gl, -yc, "div", gl, gr, yc, DIV_H[gi]))
-            # the camera is to the right of the drawer: the left tab (in the inner ply of the rail on its left) is
-            # drawn after that rail, but the right tab sits behind the outer ply of the rail on its right, so it
-            # goes before that rail (back to front in y: larger yc first)
-            items.append((gl - T, 100 - yc, "tab", gl - T, gl, yc, DIV_H[gi]))
-            items.append((gr, -100 - yc, "tab", gr, gr + T, yc, DIV_H[gi]))
     for it in sorted(items, key=lambda t: (t[0], t[1])):
         if it[2] == "rail":
             rail3(it[3], it[4], it[5])
-        elif it[2] == "div":
-            gl, gr, yc = it[3], it[4], it[5]
-            div_box(gl, gr, yc - T / 2, yc + T / 2, 0, it[6], {0, 1})
         else:
-            div_box(it[3], it[4], it[5] - T / 2, it[5] + T / 2, Z_TAB, it[6], {2, 3})
+            gl, gr, yc, top = it[3], it[4], it[5], it[6]
+            prof, rnd = tabbed_profile(gl, gr, gl - T, gr + T, top)
+            # the finger of the rail's inner ply just in front of the slot stands between the camera and the part of
+            # the left tab inside the slot, so the divider is clipped by its outline (the rail was drawn first)
+            add(f'<clipPath id="slot{len(out)}"><path clip-rule="evenodd" d="M-1e5,-1e5 H1e5 V1e5 H-1e5 Z '
+                f'{svg_path(front_finger_outline(gl, yc))}"/></clipPath>')
+            add(f'<g clip-path="url(#slot{len(out) - 1})">')
+            prism(prof, rnd, "xz", yc - T / 2, yc + T / 2, DIVC)
+            add("</g>")
+    # the front slot floors go over the ends of the rails' bodies behind the support, but not over the teeth that
+    # rail3 has drawn on its left
+    holes = " ".join(svg_path(wall_outline(*rail_wall(sx, True), 0, T)) for sx in sorted(USED))
+    add(f'<clipPath id="floors{len(out)}"><path clip-rule="evenodd" d="M-1e5,-1e5 H1e5 V1e5 H-1e5 Z {holes}"/></clipPath>')
+    add(f'<g clip-path="url(#floors{len(out) - 1})">')
+    support_floors(0, T, False)
+    add("</g>")
     support3(0, T)
 
 
-draw_assembly(lambda x0, x1, y0, y1, z0, z1, rnd: box3(x0, x1, y0, y1, z0, z1, DIVC))
+draw_assembly()
 
 a, b = P(0, 0, H), P(W, 0, H)
 text((a[0] + b[0]) / 2, (a[1] + b[1]) / 2 + 26, frac(W), 14, fill=DIM, weight="bold")
