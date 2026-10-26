@@ -2,7 +2,9 @@
 for the pan & lid storage system.
 
 Axes (inches): x = left->right (W), y = front->back (D), z = up (H).
-All parts are 3/8" baltic birch, PART_H tall (3.75" in the final design).
+All parts are 3/8" baltic birch. Fingered parts (supports, rail inner plies) are H_FING tall, plain parts
+(rail outer plies, divider A) are H_PLAIN tall, and divider B is H_FING tall. All parts stand on the drawer floor; the tabs of the tall
+parts start at the slot floor of the fingered parts and run up to the top of the part.
 """
 import math
 import os
@@ -13,8 +15,11 @@ S = 20  # px per inch in the flat views
 
 # ---- parts geometry ---------------------------------------------------------
 T = 0.375            # plywood thickness
-PART_H = float(os.environ.get("PART_H", "3.75"))   # height of every part (final strip height; nest.py can override it)
-TAB_T = float(os.environ.get("TAB_T", "1.75"))   # tab height on rail outer ply / dividers; under half the strip so nested tabs keep a gap
+X = float(os.environ.get("X_FING", "3.0"))   # height of the slotted parts; nest.py --max finds the largest that nests on the sheet
+H_FING = X           # height of the fingered parts: supports and rail inner plies
+H_PLAIN = X + 1      # height of the plain parts: rail outer plies and divider A
+DIV_H = [X + 1, X]   # divider height per gap: A (12 7/8" gap) is as tall as the rails, B (9 7/8" gap) as tall as the slotted parts
+TAB_T = X / 2        # slot depth = finger height (and how far the tabs of the tall parts reach into the slots)
 SLOT_CLR = 0.0       # extra slot depth beyond the tab height (to be set in the clearance pass)
 TAB = TAB_T + SLOT_CLR   # slot depth from the top (supports, rail inner ply) - matches the tab height
 SLOT_W = T           # support slot width: only the outer ply has tabs
@@ -35,7 +40,9 @@ GAPS = [(RAILS[0][0] + RAIL_W, RAILS[1][0]), (RAILS[2][0] + RAIL_W, RAILS[3][0])
 NOTCH_YS = [D / 2 + 0.75 * (k + 0.5) for k in range(-12, 12)]  # 24 rail slots, 3/4" centers, centered
 NOTCH_W = 0.375
 DOWEL_YS = [1.0, 5.5, 10.0, 14.5, 19.0]   # 1/4" alignment dowel holes through both plies, outer ones 5/8" in from the body ends (symmetric, so plies can flip)
-DOWEL_Z = 1.0
+Z_TAB = H_FING - TAB_T                       # slot floor height = bottom of the tabs (all parts stand on the floor)
+TAB_H = H_PLAIN - Z_TAB                     # the tabs of the rail outer plies and divider A run from the slot floor up to the top of the part
+DOWEL_Z = Z_TAB / 2                         # dowel holes sit mid-spine on the inner ply (below the slot floors), the same height on the outer ply
 DOWEL_D = 0.25
 BODY0, BODY1 = T, D - T                                    # rail body between the supports
 # placeholder dividers: (gap index, y center) -- just to show how they sit
@@ -64,12 +71,12 @@ add = out.append
 
 
 def frac(v):
-    n = round(v * 16)
-    whole, n = divmod(n, 16)
+    n = round(v * 32)
+    whole, n = divmod(n, 32)
     if n == 0:
         return f'{whole}"'
-    g = gcd(n, 16)
-    f = f"{n // g}/{16 // g}"
+    g = gcd(n, 32)
+    f = f"{n // g}/{32 // g}"
     return f'{whole} {f}"' if whole else f'{f}"'
 
 
@@ -146,6 +153,21 @@ def notched(xa, xb, top, slots, depth):
     return pts + [(xb, top), (xb, 0)], rounded | {0, 1, len(pts), len(pts) + 1}   # plus the four outer plate corners
 
 
+# plain parts: a full-height body with end tabs that start at the slot floor (Z_TAB) and run up to the top
+def tabbed_profile(x0, x1, xl, xr, top=H_PLAIN):
+    """Outline (u, v) of a body `top` tall from x0 to x1 whose tabs reach out to xl and xr, from the slot floor
+    (Z_TAB) up to the top of the part; returns (points, vertices to round)."""
+    pts = [(x0, 0), (x1, 0), (x1, Z_TAB), (xr, Z_TAB), (xr, top), (xl, top), (xl, Z_TAB), (x0, Z_TAB)]
+    return pts, {0, 1, 3, 4, 5, 6}
+
+
+RAIL_PROFILE, RAIL_RND = tabbed_profile(BODY0, BODY1, 0, D)
+
+
+def divider_profile(L, top=H_PLAIN):
+    return tabbed_profile(T, L - T, 0, L, top)
+
+
 def divider_ys(gap_index):
     return [y for g, y in DIVIDERS if g == gap_index]
 
@@ -156,7 +178,7 @@ add('<defs><marker id="arr" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7
     f'<path d="M0,1 L10,5 L0,9 z" fill="{DIM}"/></marker></defs>')
 add(f'<rect width="{CW}" height="{CH}" fill="#ffffff"/>')
 text(40, 48, "Pan &amp; Lid Drawer Storage", 26, "start", weight="bold")
-text(40, 72, f"Drawer interior {frac(W)} W  x  {frac(D)} D  x  {frac(H)} H   (grid = 4&quot;)   |   all parts 3/8&quot; baltic birch, {PART_H:g}&quot; tall", 15, "start", fill="#6b7280")
+text(40, 72, f"Drawer interior {frac(W)} W  x  {frac(D)} D  x  {frac(H)} H   (grid = 4&quot;)   |   all parts 3/8&quot; baltic birch, {H_FING:g}&quot; (supports, inner plies, divider B) / {H_PLAIN:g}&quot; (outer plies, divider A) tall", 15, "start", fill="#6b7280")
 
 # legend
 lx = 1000
@@ -235,15 +257,22 @@ for gx in range(4, int(W) + 1, 4):
     line(fx + gx * S, fy, fx + gx * S, fy + fh, GRID)
 for gz in range(4, int(H) + 1, 4):
     line(fx, fy + fh - gz * S, fx + fw, fy + fh - gz * S, GRID)
-_pts, _rnd = notched(0, W, PART_H, [(s, s + SLOT_W) for s in SLOTS], TAB)
+for gi, (gl, gr) in enumerate(GAPS):   # the dividers and the rails stand behind the front support and rise above it
+    frect(gl, gr, 0, DIV_H[gi], DIVC)
+for xl, side, _ in RAILS:
+    outer, inner = rail_halves(xl, side)
+    frect(outer[0], outer[1], 0, H_PLAIN, outer[2])
+    frect(inner[0], inner[1], 0, H_FING, inner[2])
+_pts, _rnd = notched(0, W, H_FING, [(s, s + SLOT_W) for s in SLOTS], TAB)
 rpoly([fp(u, v) for u, v in _pts], SUP, _rnd, TAB_R * S)
 for sx in SLOTS:
     if sx in USED:
-        frect(sx, sx + SLOT_W, PART_H - TAB_T, PART_H, ROUT)
+        frect(sx, sx + SLOT_W, Z_TAB, H_FING, ROUT)
 dim_h(fx, fx + fw, fy + fh + 34, frac(W))
 dim_v(fx - 34, fy, fy + fh, frac(H))
-dim_v(fx + fw + 26, fy + fh - PART_H * S, fy + fh, f'{PART_H:g}"')
-dim_v(fx + fw + 54, fy + fh - PART_H * S, fy + fh - (PART_H - TAB) * S, f'{TAB:g}"')
+dim_v(fx + fw + 26, fy + fh - H_FING * S, fy + fh, f'{H_FING:g}"')
+dim_v(fx + fw + 54, fy + fh - H_FING * S, fy + fh - Z_TAB * S, f'{TAB:g}"')
+dim_v(fx + fw + 82, fy + fh - H_PLAIN * S, fy + fh, f'{H_PLAIN:g}"')
 
 # ---------------- Right side elevation ----------------
 sx0, sy0 = fx + fw + 120, fy
@@ -260,16 +289,15 @@ for gy in range(4, int(D) + 1, 4):
     line(sx0 + gy * S, sy0, sx0 + gy * S, sy0 + sh_, GRID)
 for gz in range(4, int(H) + 1, 4):
     line(sx0, sy0 + sh_ - gz * S, sx0 + sw_, sy0 + sh_ - gz * S, GRID)
-rail_profile = [(0, PART_H), (D, PART_H), (D, PART_H - TAB_T), (BODY1, PART_H - TAB_T),
-                (BODY1, 0), (BODY0, 0), (BODY0, PART_H - TAB_T), (0, PART_H - TAB_T)]
-rpoly([sp(y, z) for y, z in rail_profile], ROUT, {0, 1, 2, 4, 5, 7}, TAB_R * S)
+rpoly([sp(y, z) for y, z in RAIL_PROFILE], ROUT, RAIL_RND, TAB_R * S)
 for y0, y1 in ((0, T), (D - T, D)):
-    a, b = sp(y0, PART_H), sp(y1, 0)
+    a, b = sp(y0, H_FING), sp(y1, 0)
     rect(a[0], a[1], b[0] - a[0], b[1] - a[1], SUP, LINE, 1)
 text(sx0 + 4, sy0 + sh_ + 56, "FRONT", 12, "start", fill="#6b7280")
 text(sx0 + sw_ - 4, sy0 + sh_ + 56, "BACK", 12, "end", fill="#6b7280")
 dim_h(sx0, sx0 + sw_, sy0 + sh_ + 34, frac(D))
 dim_v(sx0 + sw_ + 34, sy0, sy0 + sh_, frac(H))
+dim_v(sx0 + sw_ + 62, sy0 + sh_ - H_PLAIN * S, sy0 + sh_, f'{H_PLAIN:g}"')
 
 # ---------------- 3D perspective ----------------
 YAW, PITCH_A = math.radians(-28), math.radians(28)
@@ -396,10 +424,11 @@ def prism(profile, rounded, plane, off0, off1, col, skip_x_right=False, skip_top
 
 
 def support3(y0, y1):
-    prism([(0, 0), (W, 0), (W, PART_H - TAB), (0, PART_H - TAB)], {0, 1}, "xz", y0, y1, SUP, skip_top=True)
+    zf = H_FING - TAB   # slot floor height
+    prism([(0, 0), (W, 0), (W, zf), (0, zf)], {0, 1}, "xz", y0, y1, SUP, skip_top=True)
     for sx in SLOTS:  # slot floors
         if sx not in USED:
-            face([(sx, y0, PART_H - TAB), (sx + SLOT_W, y0, PART_H - TAB), (sx + SLOT_W, y1, PART_H - TAB), (sx, y1, PART_H - TAB)], shade(SUP, .6))
+            face([(sx, y0, zf), (sx + SLOT_W, y0, zf), (sx + SLOT_W, y1, zf), (sx, y1, zf)], shade(SUP, .6))
     edges = [0.0]
     for sx in SLOTS:
         edges += [sx, sx + SLOT_W]
@@ -408,25 +437,17 @@ def support3(y0, y1):
         # a wall next to a used slot is hidden by the rail
         hidden = any(abs(b - sx) < 1e-9 and sx in USED for sx in SLOTS)
         rnd = {2, 3}
-        prism([(a, PART_H - TAB), (b, PART_H - TAB), (b, PART_H), (a, PART_H)], rnd, "xz", y0, y1, SUP, skip_x_right=hidden)
-
-
-RAIL_PROFILE = [(0, PART_H), (D, PART_H), (D, PART_H - TAB_T), (BODY1, PART_H - TAB_T),
-                (BODY1, 0), (BODY0, 0), (BODY0, PART_H - TAB_T), (0, PART_H - TAB_T)]
+        prism([(a, zf), (b, zf), (b, H_FING), (a, H_FING)], rnd, "xz", y0, y1, SUP, skip_x_right=hidden)
 
 
 def rail3(xl, side, ys):
     outer, inner = rail_halves(xl, side)
     for x0, x1, col in sorted([outer, inner]):
         if (x0, x1, col) == outer:   # outer ply has the end tabs
-            prism(RAIL_PROFILE, {0, 1, 2, 4, 5, 7}, "yz", x0, x1, col)
+            prism(RAIL_PROFILE, RAIL_RND, "yz", x0, x1, col)
         else:                        # inner ply stops at the supports; slots are real geometry
-            prof, rnd = notched(BODY0, BODY1, PART_H, [(yc - NOTCH_W / 2, yc + NOTCH_W / 2) for yc in NOTCH_YS], TAB)
+            prof, rnd = notched(BODY0, BODY1, H_FING, [(yc - NOTCH_W / 2, yc + NOTCH_W / 2) for yc in NOTCH_YS], TAB)
             prism(prof, rnd, "yz", x0, x1, col)
-    for yc in NOTCH_YS:
-        if yc in ys:  # divider tab fills the slot
-            y0, y1 = yc - NOTCH_W / 2, yc + NOTCH_W / 2
-            face([(inner[0], y0, PART_H), (inner[1], y0, PART_H), (inner[1], y1, PART_H), (inner[0], y1, PART_H)], DIVC)
 
 
 BOX_EDGE = "#1f2937"
@@ -458,20 +479,33 @@ def drawer_box():
 text(box_x, py - 22, "PERSPECTIVE (front and right walls omitted for clarity)", 16, "start", weight="bold")
 drawer_box()
 
-support3(D - T, D)
-items = []
-for i, (xl, side, _) in enumerate(RAILS):
-    items.append((xl, 0, "rail", xl, side, divider_ys(i // 2)))
-for gi, (gl, gr) in enumerate(GAPS):
-    for yc in divider_ys(gi):
-        items.append((gl, -yc, "div", gl, gr, yc))
-for it in sorted(items, key=lambda t: (t[0], t[1])):
-    if it[2] == "rail":
-        rail3(it[3], it[4], it[5])
-    else:
-        gl, gr, yc = it[3], it[4], it[5]
-        box3(gl, gr, yc - T / 2, yc + T / 2, 0, PART_H, DIVC)
-support3(0, T)
+def draw_assembly(div_box):
+    """Back to front: supports, rails and dividers. div_box(x0, x1, y0, y1, z0, z1, rounded) draws one block of a
+    divider (its body, or one of its two tabs, which stand in the rail slots and rise above the inner plies)."""
+    support3(D - T, D)
+    items = []
+    for i, (xl, side, _) in enumerate(RAILS):
+        items.append((xl, 0, "rail", xl, side, divider_ys(i // 2)))
+    for gi, (gl, gr) in enumerate(GAPS):
+        for yc in divider_ys(gi):
+            items.append((gl, -yc, "div", gl, gr, yc, DIV_H[gi]))
+            # the camera is to the right of the drawer: the left tab (in the inner ply of the rail on its left) is
+            # drawn after that rail, but the right tab sits behind the outer ply of the rail on its right, so it
+            # goes before that rail (back to front in y: larger yc first)
+            items.append((gl - T, 100 - yc, "tab", gl - T, gl, yc, DIV_H[gi]))
+            items.append((gr, -100 - yc, "tab", gr, gr + T, yc, DIV_H[gi]))
+    for it in sorted(items, key=lambda t: (t[0], t[1])):
+        if it[2] == "rail":
+            rail3(it[3], it[4], it[5])
+        elif it[2] == "div":
+            gl, gr, yc = it[3], it[4], it[5]
+            div_box(gl, gr, yc - T / 2, yc + T / 2, 0, it[6], {0, 1})
+        else:
+            div_box(it[3], it[4], it[5] - T / 2, it[5] + T / 2, Z_TAB, it[6], {2, 3})
+    support3(0, T)
+
+
+draw_assembly(lambda x0, x1, y0, y1, z0, z1, rnd: box3(x0, x1, y0, y1, z0, z1, DIVC))
 
 a, b = P(0, 0, H), P(W, 0, H)
 text((a[0] + b[0]) / 2, (a[1] + b[1]) / 2 + 26, frac(W), 14, fill=DIM, weight="bold")
@@ -499,28 +533,28 @@ def drect(ox_, oy_, h, u0, u1, v0, v1, fill, sw=1):
 
 # support
 sy1 = ty + 40
-_pts, _rnd = notched(0, W, PART_H, [(s, s + SLOT_W) for s in SLOTS], TAB)
-dp(110, sy1, PART_H, _pts, SUP, rounded=_rnd)
-text(110, sy1 + PART_H * S + 22, f"SUPPORT x2   {frac(W)} x {PART_H:g}&quot; x 3/8&quot;   |   {len(SLOTS)} slots, 3/8&quot; wide x {TAB:g}&quot; deep, 1&quot; centers, first slot at {frac(SLOTS[0])}", 14, "start", weight="bold")
+_pts, _rnd = notched(0, W, H_FING, [(s, s + SLOT_W) for s in SLOTS], TAB)
+dp(110, sy1, H_FING, _pts, SUP, rounded=_rnd)
+text(110, sy1 + H_FING * S + 22, f"SUPPORT x2   {frac(W)} x {H_FING:g}&quot; x 3/8&quot;   |   {len(SLOTS)} slots, 3/8&quot; wide x {TAB:g}&quot; deep, 1&quot; centers, first slot at {frac(SLOTS[0])}", 14, "start", weight="bold")
 
-# rail plies
-ry = sy1 + PART_H * S + 80
-rail_profile_uv = rail_profile
-dp(110, ry, PART_H, rail_profile_uv, ROUT, rounded={0, 1, 2, 4, 5, 7})
+# rail plies (drawn on a common baseline)
+ry = sy1 + H_FING * S + 80
+base = ry + H_PLAIN * S
+dp(110, ry, H_PLAIN, RAIL_PROFILE, ROUT, rounded=RAIL_RND)
 BL = BODY1 - BODY0
-_pts, _rnd = notched(0, BL, PART_H, [(yc - BODY0 - NOTCH_W / 2, yc - BODY0 + NOTCH_W / 2) for yc in NOTCH_YS], TAB)
-dp(560, ry, PART_H, _pts, RIN, rounded=_rnd)
+_pts, _rnd = notched(0, BL, H_FING, [(yc - BODY0 - NOTCH_W / 2, yc - BODY0 + NOTCH_W / 2) for yc in NOTCH_YS], TAB)
+dp(560, base - H_FING * S, H_FING, _pts, RIN, rounded=_rnd)
 for _y in DOWEL_YS:
     for _ox, _u in ((110, _y), (560, _y - BODY0)):
-        add(f'<circle cx="{_ox + _u * S:.1f}" cy="{ry + (4 - DOWEL_Z) * S:.1f}" r="{DOWEL_D / 2 * S:.1f}" fill="#ffffff" stroke="{LINE}" stroke-width="1"/>')
-text(110, ry + PART_H * S + 72, f"{len(DOWEL_YS)} x 1/4&quot; dowel holes, {', '.join(frac(y) for y in DOWEL_YS)} from front, 1&quot; up", 12, "start", fill="#374151")
-text(560, ry + PART_H * S + 72, f"same {len(DOWEL_YS)} dowel holes, same positions (aligns to outer ply)", 12, "start", fill="#374151")
-text(110, ry + PART_H * S + 22, "RAIL OUTER PLY x4", 14, "start", weight="bold")
-text(110, ry + PART_H * S + 40, f"{frac(D)} x {PART_H:g}&quot; x 3/8&quot;; end tabs {TAB_T:g}&quot; tall x 3/8&quot; long (body {frac(BODY1 - BODY0)} between supports)", 12, "start", fill="#374151")
-text(110, ry + PART_H * S + 56, "all outside corners R 1/8&quot;", 12, "start", fill="#374151")
-text(560, ry + PART_H * S + 22, "RAIL INNER PLY x4", 14, "start", weight="bold")
-text(560, ry + PART_H * S + 40, f"{frac(BL)} x {PART_H:g}&quot; x 3/8&quot;, no tabs; {len(NOTCH_YS)} slots 3/8&quot; wide x {TAB:g}&quot; deep, 3/4&quot; centers", 12, "start", fill="#374151")
-text(560, ry + PART_H * S + 56, "glue inner + outer: 3/4&quot; thick rail", 12, "start", fill="#374151")
+        add(f'<circle cx="{_ox + _u * S:.1f}" cy="{base - DOWEL_Z * S:.1f}" r="{DOWEL_D / 2 * S:.1f}" fill="#ffffff" stroke="{LINE}" stroke-width="1"/>')
+text(110, base + 72, f"{len(DOWEL_YS)} x 1/4&quot; dowel holes, {', '.join(frac(y) for y in DOWEL_YS)} from front, {frac(DOWEL_Z)} up", 12, "start", fill="#374151")
+text(560, base + 72, f"same {len(DOWEL_YS)} dowel holes, {frac(DOWEL_Z)} up (mid-spine; aligns to outer ply)", 12, "start", fill="#374151")
+text(110, base + 22, "RAIL OUTER PLY x4", 14, "start", weight="bold")
+text(110, base + 40, f"{frac(D)} x {H_PLAIN:g}&quot; x 3/8&quot;; end tabs {frac(TAB_H)} tall, {frac(Z_TAB)} up to top, 3/8&quot; long", 12, "start", fill="#374151")
+text(110, base + 56, "all outside corners R 1/8&quot;", 12, "start", fill="#374151")
+text(560, base + 22, "RAIL INNER PLY x4", 14, "start", weight="bold")
+text(560, base + 40, f"{frac(BL)} x {H_FING:g}&quot; x 3/8&quot;, no tabs; {len(NOTCH_YS)} slots 3/8&quot; wide x {TAB:g}&quot; deep, 3/4&quot; centers", 12, "start", fill="#374151")
+text(560, base + 56, f"glue inner + outer, bottoms flush: 3/4&quot; thick rail", 12, "start", fill="#374151")
 
 # dividers
 for i, (gi, label, qty) in enumerate([(0, "A", 2), (1, "B", 1)]):
@@ -528,15 +562,15 @@ for i, (gi, label, qty) in enumerate([(0, "A", 2), (1, "B", 1)]):
     g = gr - gl
     L = g + 2 * T
     ox_ = 1010 if i == 0 else 1010 + (GAPS[0][1] - GAPS[0][0] + 2 * T) * S + 40
-    ts = PART_H - TAB_T
-    dp(ox_, ry, PART_H, [(0, PART_H), (L, PART_H), (L, ts), (L - T, ts), (L - T, 0), (T, 0), (T, ts), (0, ts)], DIVC, rounded={0, 1, 2, 4, 5, 7})
-    text(ox_, ry + PART_H * S + 22, f"DIVIDER {label} (example x{qty})", 14, "start", weight="bold")
-    text(ox_, ry + PART_H * S + 40, f"top {frac(L)}, body {frac(g)} x {PART_H:g}&quot; x 3/8&quot;", 12, "start", fill="#374151")
-    text(ox_, ry + PART_H * S + 56, f"tabs {TAB_T:g}&quot; tall x 3/8&quot; long, corners R 1/8&quot;", 12, "start", fill="#374151")
+    hd = DIV_H[gi]
+    dp(ox_, base - hd * S, hd, *divider_profile(L, hd)[:1], DIVC, rounded=divider_profile(L, hd)[1])
+    text(ox_, base + 22, f"DIVIDER {label} (example x{qty})", 14, "start", weight="bold")
+    text(ox_, base + 40, f"top {frac(L)}, body {frac(g)} x {hd:g}&quot; x 3/8&quot;", 12, "start", fill="#374151")
+    text(ox_, base + 56, f"tabs {frac(hd - Z_TAB)} tall, {frac(Z_TAB)} up to top", 12, "start", fill="#374151")
 
 add("</svg>")
 
-if PART_H == 3.75 and TAB_T == 1.75:  # an overridden part height (used by nest.py) must not overwrite the drawing
+if __name__ == "__main__":   # nest.py and perspective.py import this module and must not overwrite the drawing
     with open("drawer.svg", "w") as f:
         f.write("\n".join(out))
     print("wrote drawer.svg")

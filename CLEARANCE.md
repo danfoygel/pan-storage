@@ -4,8 +4,14 @@ Every place where parts mate and an explicit clearance or tolerance has to be ch
 is what the current model assumes: **nominal sizes everywhere, zero clearance.** The **Decision** column is
 left open until the plywood thickness and laser kerf are measured.
 
-Dimensions below are at the final 3.75" strip height (slot depth and tab height 1 3/4"); at the original
-4" strips they are 1 15/16".
+Dimensions below are for the current geometry: slotted parts (supports, rail inner plies) and divider B 3"
+tall, rail outer plies and divider A 4" tall, slots and fingers 1 1/2" deep. Everything stands on the drawer
+floor; the tabs run from the slot floor (1 1/2" up) to the top of the part, so 1 1/2" of each tab sits in a slot.
+
+**The nest has some spare:** at x = 3" the rows are 1/4" apart and 1" of the 34" side is left over, held as 1/2" of
+padding at the top and bottom. The three `O A A` rows have only 1/4" to spare across the 48" width, so a clearance
+that lengthens the rail outer plies or divider A is limited to about 1/8" per part there (`nest.py --max` finds the
+new limit for `x`).
 
 ## A. Inputs that affect everything
 
@@ -26,7 +32,7 @@ Dimensions below are at the final 3.75" strip height (slot depth and tab height 
 | # | Interface | Today | Decision |
 |---|---|---|---|
 | C1 | Support slot width vs outer-ply tab thickness (3/8"). | Exact. | |
-| C2 | Support slot depth vs tab height (1 3/4" each). | Exact (`SLOT_CLR = 0` in `drawer.py`). Decide whether the tab should bottom out in the slot or stop short. | |
+| C2 | Support slot depth vs tab height (1 1/2" each). | Exact (`SLOT_CLR = 0` in `drawer.py`). Decide whether the tab should bottom out in the slot or stop short. | |
 | C3 | Tab length vs support thickness (3/8"), so the tab end is flush with the drawer wall. | Exact. | |
 | C4 | Rail body length (19 1/4") vs the gap between the supports' inner faces (20" − 2 × 3/8"). Applies to both the inner and outer plies. | Exact. | |
 | C5 | Slot position tolerance across the support, which sets the gaps between rail pairs (12 7/8" and 9 7/8"). | Exact. | |
@@ -47,8 +53,8 @@ Dimensions below are at the final 3.75" strip height (slot depth and tab height 
 | E1 | Rail slot width (3/8") vs divider thickness (3/8"). Sets whether dividers slide in easily. | Exact. | |
 | E2 | Divider tab length vs inner ply thickness. If the tab is longer than the slot is deep, the divider bottoms out on the outer ply. | Exact. | |
 | E3 | Divider overall length vs gap width (12 7/8" and 9 7/8"). This is the total side-to-side play. | Gap + 2 × 3/8", exact. | |
-| E4 | Divider tab height (1 3/4") vs rail slot depth (1 3/4"). | Exact. | |
-| E5 | Divider total height (3.75") vs how it seats. It can rest on the slot floors or on the drawer floor, but it shouldn't do both. | Not decided. | |
+| E4 | Divider tab height (1") vs rail slot depth (1"). | Exact. | |
+| E5 | Divider seating. It can rest on the drawer floor or on the slot floors (its tab bottoms are 1 1/2" up, level with them), but it shouldn't do both. The same applies to the rail outer plies in the support slots. | Not decided: both are nominally in contact, so one of them will bind. | |
 
 ## F. Process effects that eat into the clearances
 
@@ -66,11 +72,11 @@ through into the dividers.
 
 | # | Item | Value |
 |---|---|---|
-| G1 | Padding at all four sheet edges (minimum) | 1/4" |
-| G2 | Gap between rows of parts | 0.227" (spare strip space spread over the gaps) |
-| G3 | Gap between parts within a row | at least 1/4"; equalized with the end padding per row |
-| G4 | Vertical gap where interlocked tabs meet a notch | 1/4" |
-| G5 | Minimum clearance around a dowel hole to the part edge | hole radius + half the part gap |
+| G1 | Padding at the sheet edges | 1/2" top and bottom, 1/4" left and right (held by the `O A A` rows) |
+| G2 | Gap between rows | 1/4" |
+| G3 | Gap between parts within a row | equalized with the end padding per row (1/8" in the three `O A A` rows, at least 1/4" at the ends) |
+| G4 | Tabs on neighbouring plain parts | not interlocked; at least the 1/8" gap apart |
+| G5 | Minimum clearance around a dowel hole to the part edge | hole radius + half the part gap (0.1875"); the holes sit mid-spine, 0.6" from the nearest edge on the inner ply |
 
 ## Next step
 
