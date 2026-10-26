@@ -377,8 +377,9 @@ def rounded_profile(pts, rounded, r, n=4):
 FACE_HOOK = None   # optional callback(kind, px_points, extra) for each prism face; perspective.py uses it for the wood look
 
 
-def prism(profile, rounded, plane, off0, off1, col, skip_x_right=False, skip_top=False):
-    """Extrude a (u, v) profile: plane 'yz' extrudes along +x, 'xz' along +y."""
+def prism(profile, rounded, plane, off0, off1, col, skip_x_right=False, skip_top=False, open_v=None):
+    """Extrude a (u, v) profile: plane 'yz' extrudes along +x, 'xz' along +y. open_v: don't outline the end faces along
+    the horizontal edges at this v (where the part continues into another one drawn as part of the same piece)."""
     pts, smooth = rounded_profile(profile, rounded, TAB_R)
     m = len(pts)
     area = sum(pts[i][0] * pts[(i + 1) % m][1] - pts[(i + 1) % m][0] * pts[i][1] for i in range(m))
@@ -426,13 +427,31 @@ def prism(profile, rounded, plane, off0, off1, col, skip_x_right=False, skip_top
     for n, off in (((-axis[0], -axis[1], 0), off0), (axis, off1)):
         if visible(n, to3(pts[0][0], pts[0][1], off)):
             cap = [P(*to3(*p, off)) for p in pts]
-            poly(cap, shade(col, bright(n)), LINE, 0.8)
+            if open_v is None:
+                poly(cap, shade(col, bright(n)), LINE, 0.8)
+            else:
+                c = shade(col, bright(n))
+                poly(cap, c, c, 0.6)
+                omit = [abs(pts[i][1] - open_v) < 1e-9 and abs(pts[(i + 1) % m][1] - open_v) < 1e-9 for i in range(m)]
+                start = next(i for i in range(m) if omit[i]) + 1   # walk the outline from just after an omitted edge
+                run = [cap[start % m]]
+                for k in range(m):
+                    i = (start + k) % m
+                    if omit[i]:
+                        break
+                    run.append(cap[(i + 1) % m])
+                add(f'<polyline points="{" ".join(f"{a:.1f},{b:.1f}" for a, b in run)}" fill="none" stroke="{LINE}" '
+                    f'stroke-width="0.8" stroke-linejoin="round" stroke-linecap="round"/>')
             if FACE_HOOK:
                 FACE_HOOK("cap", cap, plane)
 
 
 def slot_floor(sx, y0, y1, zf):
-    face([(sx, y0, zf), (sx + SLOT_W, y0, zf), (sx + SLOT_W, y1, zf), (sx, y1, zf)], shade(SUP, .6))
+    """The floor of a slot is a cut edge of the support, drawn like the edges of the rails (plies visible)."""
+    quad = [P(sx, y0, zf), P(sx + SLOT_W, y0, zf), P(sx + SLOT_W, y1, zf), P(sx, y1, zf)]
+    poly(quad, shade(SUP, 1.0), LINE, 0.8)
+    if FACE_HOOK:
+        FACE_HOOK("edge", quad, False)
 
 
 def support_walls():
@@ -446,7 +465,7 @@ def support_walls():
 
 def wall3(y0, y1, a, b, hidden=False):
     zf = H_FING - TAB   # slot floor height
-    prism([(a, zf), (b, zf), (b, H_FING), (a, H_FING)], {2, 3}, "xz", y0, y1, SUP, skip_x_right=hidden)
+    prism([(a, zf), (b, zf), (b, H_FING), (a, H_FING)], {2, 3}, "xz", y0, y1, SUP, skip_x_right=hidden, open_v=zf)
 
 
 def rail_wall(sx, left):
@@ -466,7 +485,10 @@ def support3(y0, y1):
     """The support without its slot floors and the walls next to used slots: rail3 draws those in the right order
     around the rail's tab."""
     zf = H_FING - TAB   # slot floor height
-    prism([(0, 0), (W, 0), (W, zf), (0, zf)], {0, 1}, "xz", y0, y1, SUP, skip_top=True)
+    prism([(0, 0), (W, 0), (W, zf), (0, zf)], {0, 1}, "xz", y0, y1, SUP, skip_top=True, open_v=zf)
+    for sx in SLOTS:   # the base is outlined only along the slots, where its top edge is real
+        a, b = P(sx, y0, zf), P(sx + SLOT_W, y0, zf)
+        line(a[0], a[1], b[0], b[1], LINE, 0.8)
     for a, b in support_walls():
         if not any(abs(b - sx) < 1e-9 or abs(a - sx - SLOT_W) < 1e-9 for sx in USED):
             wall3(y0, y1, a, b)
@@ -568,6 +590,13 @@ def front_finger_outline(gl, yc):
     return convex_hull([P(x, y, z) for x in (gl - T, gl) for y, z in prof])
 
 
+def wall_outline(a, b, y0, y1):
+    """Screen outline of a support wall (tooth) between x = a and b, from the slot floor up."""
+    zf = H_FING - TAB
+    prof, _ = rounded_profile([(a, zf), (b, zf), (b, H_FING), (a, H_FING)], {2, 3}, TAB_R)
+    return convex_hull([P(x, y, z) for y in (y0, y1) for x, z in prof])
+
+
 def front_tab_outline(sx):
     """Screen outline of the front end tab of the rail's outer ply standing in the support slot at sx."""
     prof, _ = rounded_profile([(0, Z_TAB), (BODY0, Z_TAB), (BODY0, H_PLAIN), (0, H_PLAIN)], {0, 3}, TAB_R)
@@ -584,7 +613,6 @@ def draw_assembly():
     support_floors(D - T, D, True)
     support_floors(D - T, D, False)
     support3(D - T, D)
-    support_floors(0, T, False)
     items = []
     for i, (xl, side, _) in enumerate(RAILS):
         items.append((xl, 0, "rail", xl, side, divider_ys(i // 2)))
@@ -607,6 +635,13 @@ def draw_assembly():
             add(f'<g clip-path="url(#slot{len(out) - 1})">')
             prism(prof, rnd, "xz", yc - T / 2, yc + T / 2, DIVC)
             add("</g>")
+    # the front slot floors go over the ends of the rails' bodies behind the support, but not over the teeth that
+    # rail3 has drawn on its left
+    holes = " ".join(svg_path(wall_outline(*rail_wall(sx, True), 0, T)) for sx in sorted(USED))
+    add(f'<clipPath id="floors{len(out)}"><path clip-rule="evenodd" d="M-1e5,-1e5 H1e5 V1e5 H-1e5 Z {holes}"/></clipPath>')
+    add(f'<g clip-path="url(#floors{len(out) - 1})">')
+    support_floors(0, T, False)
+    add("</g>")
     support3(0, T)
 
 
