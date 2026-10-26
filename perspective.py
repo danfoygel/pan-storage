@@ -104,7 +104,7 @@ d.add(f'<polygon points="{pts_attr([(x + 10, y + 22) for x, y in sh])}" fill="#1
 d.drawer_box()
 
 # assembly, back to front
-d.draw_assembly(lambda x0, x1, y0, y1, z0, z1, rnd: d.prism([(x0, z0), (x1, z0), (x1, z1), (x0, z1)], rnd, "xz", y0, y1, d.DIVC))
+d.draw_assembly()
 d.add("</svg>")
 
 open("perspective.svg", "w").write("\n".join(d.out))

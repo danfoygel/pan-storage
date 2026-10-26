@@ -479,33 +479,30 @@ def drawer_box():
 text(box_x, py - 22, "PERSPECTIVE (front and right walls omitted for clarity)", 16, "start", weight="bold")
 drawer_box()
 
-def draw_assembly(div_box):
-    """Back to front: supports, rails and dividers. div_box(x0, x1, y0, y1, z0, z1, rounded) draws one block of a
-    divider (its body, or one of its two tabs, which stand in the rail slots and rise above the inner plies)."""
+def draw_assembly():
+    """Back to front: supports, rails and dividers. Each divider is drawn as one piece: its body and the two tabs
+    that stand in the rail slots (and rise above the inner plies) are a single extruded profile."""
     support3(D - T, D)
     items = []
     for i, (xl, side, _) in enumerate(RAILS):
         items.append((xl, 0, "rail", xl, side, divider_ys(i // 2)))
     for gi, (gl, gr) in enumerate(GAPS):
         for yc in divider_ys(gi):
+            # sorted by the body's left edge: the left tab is drawn after the rail on its left, and the right tab
+            # (which sits behind the outer ply of the rail on its right, the camera being to the right) before that
+            # rail; back to front in y: larger yc first
             items.append((gl, -yc, "div", gl, gr, yc, DIV_H[gi]))
-            # the camera is to the right of the drawer: the left tab (in the inner ply of the rail on its left) is
-            # drawn after that rail, but the right tab sits behind the outer ply of the rail on its right, so it
-            # goes before that rail (back to front in y: larger yc first)
-            items.append((gl - T, 100 - yc, "tab", gl - T, gl, yc, DIV_H[gi]))
-            items.append((gr, -100 - yc, "tab", gr, gr + T, yc, DIV_H[gi]))
     for it in sorted(items, key=lambda t: (t[0], t[1])):
         if it[2] == "rail":
             rail3(it[3], it[4], it[5])
-        elif it[2] == "div":
-            gl, gr, yc = it[3], it[4], it[5]
-            div_box(gl, gr, yc - T / 2, yc + T / 2, 0, it[6], {0, 1})
         else:
-            div_box(it[3], it[4], it[5] - T / 2, it[5] + T / 2, Z_TAB, it[6], {2, 3})
+            gl, gr, yc, top = it[3], it[4], it[5], it[6]
+            prof, rnd = tabbed_profile(gl, gr, gl - T, gr + T, top)
+            prism(prof, rnd, "xz", yc - T / 2, yc + T / 2, DIVC)
     support3(0, T)
 
 
-draw_assembly(lambda x0, x1, y0, y1, z0, z1, rnd: box3(x0, x1, y0, y1, z0, z1, DIVC))
+draw_assembly()
 
 a, b = P(0, 0, H), P(W, 0, H)
 text((a[0] + b[0]) / 2, (a[1] + b[1]) / 2 + 26, frac(W), 14, fill=DIM, weight="bold")
