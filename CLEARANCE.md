@@ -8,9 +8,10 @@ Dimensions below are for the current geometry: slotted parts (supports, rail inn
 tall, rail outer plies and divider A 4" tall, slots and fingers 1 1/2" deep. Everything stands on the drawer
 floor; the tabs run from the slot floor (1 1/2" up) to the top of the part, so 1 1/2" of each tab sits in a slot.
 
-**The nest has some spare:** at x = 3" there is 1.5" of the 34" side left over, spread over 8 row gaps (0.312"
-each). The three `O A A` rows have only 1/4" to spare across the 48" width, so a clearance that lengthens the
-rail outer plies or divider A is limited to about 1/8" per part there (`nest.py --max` finds the new limit for `x`).
+**The nest has some spare:** at x = 3" the rows are 1/4" apart and 1" of the 34" side is left over, held as 1/2" of
+padding at the top and bottom. The three `O A A` rows have only 1/4" to spare across the 48" width, so a clearance
+that lengthens the rail outer plies or divider A is limited to about 1/8" per part there (`nest.py --max` finds the
+new limit for `x`).
 
 ## A. Inputs that affect everything
 
@@ -71,8 +72,8 @@ through into the dividers.
 
 | # | Item | Value |
 |---|---|---|
-| G1 | Padding at all four sheet edges (minimum) | 1/4" |
-| G2 | Gap between rows | 0.312" (the spare 34" side spread over the row gaps; at least 1/8") |
+| G1 | Padding at the sheet edges | 1/2" top and bottom, 1/4" left and right (held by the `O A A` rows) |
+| G2 | Gap between rows | 1/4" |
 | G3 | Gap between parts within a row | equalized with the end padding per row (1/8" in the three `O A A` rows, at least 1/4" at the ends) |
 | G4 | Tabs on neighbouring plain parts | not interlocked; at least the 1/8" gap apart |
 | G5 | Minimum clearance around a dowel hole to the part edge | hole radius + half the part gap (0.1875"); the holes sit mid-spine, 0.6" from the nearest edge on the inner ply |

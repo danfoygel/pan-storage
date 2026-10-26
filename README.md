@@ -119,7 +119,7 @@ are left sharp because the laser cuts them cleanly.
 8. **Divider B is `x` tall, and the nest is interleaved rows (latest change).** Making divider B as tall as the
    slotted parts lets it share a row with them without wasting height. The layout is rows of parts, with rows
    that have fingers alternating with plain rows so the fingers can be cut first (see Nesting). `x` could go up to
-   3 1/8" on the sheet; it is set to **3"** and the spare height goes into the gaps between rows. Grain direction
+   3 1/8" on the sheet; it is set to **3"**, and the spare height goes into 1/4" gaps between rows and 1/2" of padding top and bottom. Grain direction
    was ruled out as a constraint, so the parts run along the 48" side.
 
 ### Rail deflection check
@@ -140,7 +140,8 @@ or bracing is needed.
 ## Nesting decisions
 
 - **Sheet:** 48" × 34", parts running along the 48" side, 1/4" minimum padding at all four edges and 1/8" minimum
-  between parts (the sheet is fixed; a 36" sheet would not fit the CNC).
+  between parts (the sheet is fixed; a 36" sheet would not fit the CNC). The rows are 1/4" apart and the spare
+  height goes into the padding at the top and bottom of the sheet (see below).
 - **Interleaved rows.** The layout is rows (strips) of parts side by side. A row is **fingered** if it holds a
   support or a rail inner ply (plus, beside it, a divider B, which is as tall as they are, or a divider A) and
   **plain** if it holds only rail outer plies and dividers. No two fingered rows are adjacent and the first and
@@ -148,7 +149,7 @@ or bracing is needed.
   file's blue pass (fingers) therefore always runs against solid, uncut plain stock.
 - **Exact search.** `nest.py` finds the set of rows with the least total height by dynamic programming over the
   parts left to place (every row that fits, with 1/8" gaps and 1/4" padding), subject to the interleave rule,
-  then orders them plain / fingered / plain / ..., and spreads the spare height over the gaps between rows.
+  then orders them plain / fingered / plain / ..., and sets the row gaps to 1/4"; the spare height goes into the padding at the ends of the stack.
 - **Largest x.** `python3 nest.py --max` scans `x` in 1/16" steps (the stack along the 34" side must fit in 34"):
 
   | x (slotted) | rail outer / divider A | fingers | stack needed |
@@ -163,15 +164,17 @@ or bracing is needed.
   (P / F = plain / fingered row; O, A, B = rail outer ply, divider A, divider B; S, I = support, rail inner ply).
   The fingered rows run in a fixed order: a support row with the **support pushed against the right edge**, the two
   rail inner ply rows, then the other support row with the **support pushed against the left edge**.
-  The 1.5" of spare height is spread over the 8 row gaps, so rows are **0.312" apart**. The three `O A A` rows are
-  47 1/4" of parts in 47 1/2" of usable width, so the gaps inside those rows can only be 1/8"; the other rows have
-  more room, and the padding in each row is equalized.
+  The rows are **1/4" apart** (8 gaps, 2" in all) and the remaining 1" of the 34" side is split into **1/2" of
+  padding at the top and 1/2" at the bottom**. The left and right padding cannot grow: the three `O A A` rows are
+  47 1/4" of parts in 48", so with 1/8" gaps inside them the ends of those rows are held at 1/4". The other rows
+  have more room, and the padding in each row is equalized.
 - **Other orientation:** `python3 nest.py short` runs the parts along the 34" side (stacked along the 48" side).
   That keeps a 48"-side grain running along the fingers but fits less: 13 rows, largest `x` 2 7/8".
 - **No interlocking:** the tabs of the tall parts are taller than the notch beside them, so neighbouring parts
   cannot nest their tabs into each other's notches and each part takes its full length in a row.
-- **Spare:** a clearance (see [CLEARANCE.md](CLEARANCE.md)) that makes parts bigger comes out of the spare height
-  first, and the 1/8" in-row gaps are the tight spot for the long parts.
+- **Spare:** a clearance (see [CLEARANCE.md](CLEARANCE.md)) that makes parts bigger comes out of the 1" of top and
+  bottom padding first (the row gaps shrink only after that), and the 1/8" in-row gaps are the tight spot for the
+  long parts.
 
 ### Cut order
 

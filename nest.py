@@ -37,6 +37,7 @@ ORIENT = ARGS[0] if ARGS else "long"
 FIND_MAX = "--max" in sys.argv
 EDGE = 0.25                     # padding at all four sheet edges (minimum)
 G = 0.125                       # smallest gap between parts
+ROW_GAP_SET = 0.25              # gap between rows; the spare height beyond that goes into the padding at both ends of the stack
 SHEET_W, SHEET_H = 48.0, 34.0
 ROW_LEN, STACK = (SHEET_H, SHEET_W) if ORIENT == "short" else (SHEET_W, SHEET_H)
 T, TAB_R = d.T, d.TAB_R
@@ -190,8 +191,12 @@ def build():
                  f" ({ORIENT} orientation); run `python3 nest.py {ORIENT} --max`")
     used, rows = res
     rows, align = row_order(rows)
-    gap = (STACK - 2 * EDGE - sum(h for _, h, _ in rows)) / (len(rows) - 1)     # spread the spare height over the row gaps
-    y = EDGE
+    spare = STACK - sum(h for _, h, _ in rows)
+    gap = ROW_GAP_SET
+    pad = (spare - gap * (len(rows) - 1)) / 2             # rows are ROW_GAP_SET apart; the rest is padding at both ends of the stack
+    if pad < EDGE:                                        # not enough spare height: shrink the row gaps instead
+        gap, pad = (spare - 2 * EDGE) / (len(rows) - 1), EDGE
+    y = pad
     for i, (counts, h, fingered) in enumerate(rows):
         keys = [k for k in "SIOAB" for _ in range(counts.get(k, 0))]
         free = ROW_LEN - sum(LENGTH[k] for k in keys)
@@ -209,10 +214,10 @@ def build():
             put(k, x, y, False)                  # fingers face the row above, which is plain
             x += LENGTH[k] + inner
         y += h + gap
-    return used, gap, rows
+    return used, gap, pad, rows
 
 
-STACK_USED, ROW_GAP, ROWS = build()
+STACK_USED, ROW_GAP, STACK_PAD, ROWS = build()
 
 
 
@@ -322,7 +327,7 @@ head = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 -1 {SHEET_W + 2:g}
         '<text x="0" y="1.2" font-size="1.5" font-weight="bold" fill="#111827">Pan &amp; Lid Drawer Storage - nested layout</text>',
         f'<text x="0" y="2.3" font-size="0.7" fill="#6b7280">3/8" baltic birch; parts run along the {"34" if ORIENT == "short" else "48"}" side{GRAIN_NOTE}.</text>',
         f'<text x="0" y="3.0" font-size="0.7" fill="#6b7280">Slotted parts (supports, rail inner plies) and divider B {H_F:g}" tall; rail outer plies and divider A {H_P:g}" tall; fingers and slots {d.TAB_T:g}" deep.</text>',
-        f'<text x="0" y="3.7" font-size="0.7" fill="#6b7280">Rows with fingers alternate with plain rows; padding {EDGE:g}" at the sheet edges, {ROW_GAP:.3f}" between rows (min {G:g}").</text>',
+        f'<text x="0" y="3.7" font-size="0.7" fill="#6b7280">Rows with fingers alternate with plain rows; {ROW_GAP:.3f}" between rows, {STACK_PAD:.3f}" padding at the ends of the stack and at least {EDGE:g}" at the ends of the rows.</text>',
         f'<text x="0" y="4.4" font-size="0.7" fill="#6b7280">Sheet {SHEET_W:g}" x {SHEET_H:g}": {desc}.</text>',
         '<text x="0" y="6.4" font-size="0.7" fill="#6b7280">Cut order (cut file colours): 1 red = dowel holes, 2 blue = fingered parts (supports, rail inner plies), 3 green = plain parts (rail outer plies, dividers).</text>']
 if ERRORS:
@@ -332,7 +337,7 @@ else:
 sheet = [f'<g transform="translate(0 {VIEW_OY})">', f'<rect x="0" y="0" width="{SHEET_W:g}" height="{SHEET_H:g}" fill="#fbf7ee" stroke="#6b7280" stroke-width="0.08"/>'] + VIEW + ["</g>"]
 open(f"layout_{TAG}.svg", "w").write("\n".join(head + sheet + ["</svg>"]))
 print("totals:", {k: TALLY[k] for k in "SIOAB"})
-print(f"x = {H_F:g} (plain {H_P:g}, fingers {d.TAB_T:g}); {ORIENT} orientation: {len(ROWS)} rows need {STACK_USED:.3f}\" of the {STACK:g}\" side at the minimum gap; row gap {ROW_GAP:.3f}\"")
+print(f"x = {H_F:g} (plain {H_P:g}, fingers {d.TAB_T:g}); {ORIENT} orientation: {len(ROWS)} rows need {STACK_USED:.3f}\" of the {STACK:g}\" side at the minimum gap; row gap {ROW_GAP:.3f}\", padding {STACK_PAD:.3f}\" at the ends of the stack, {EDGE:g}\" at the ends of the rows")
 print("rows, top to bottom: " + " | ".join(("F " if f else "P ") + "".join(k * c[k] for k in "SIOAB" if k in c) for c, _, f in ROWS))
 if ERRORS:
     print(f"LAYOUT ERRORS ({len(ERRORS)}):")
