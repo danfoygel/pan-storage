@@ -479,6 +479,30 @@ def drawer_box():
 text(box_x, py - 22, "PERSPECTIVE (front and right walls omitted for clarity)", 16, "start", weight="bold")
 drawer_box()
 
+def front_finger_outline(gl, yc):
+    """Screen outline of the finger of the left rail's inner ply directly in front of the divider slot at yc,
+    from the slot floor up (the part that can hide the divider's tab)."""
+    prev = [y for y in NOTCH_YS if y < yc - 1e-9]
+    y0 = prev[-1] + NOTCH_W / 2 if prev else BODY0
+    y1 = yc - NOTCH_W / 2
+    prof, _ = rounded_profile([(y0, Z_TAB), (y1, Z_TAB), (y1, H_FING), (y0, H_FING)], {2, 3}, TAB_R)
+    pts = sorted({P(x, y, z) for x in (gl - T, gl) for y, z in prof})
+    hull = []
+    for seq in (pts, pts[::-1]):   # monotone-chain convex hull (the finger is convex)
+        part = []
+        for p in seq:
+            while len(part) >= 2 and ((part[-1][0] - part[-2][0]) * (p[1] - part[-2][1])
+                                      - (part[-1][1] - part[-2][1]) * (p[0] - part[-2][0])) <= 0:
+                part.pop()
+            part.append(p)
+        hull += part[:-1]
+    return hull
+
+
+def svg_path(pts):
+    return "M" + " L".join(f"{x:.2f},{y:.2f}" for x, y in pts) + " Z"
+
+
 def draw_assembly():
     """Back to front: supports, rails and dividers. Each divider is drawn as one piece: its body and the two tabs
     that stand in the rail slots (and rise above the inner plies) are a single extruded profile."""
@@ -498,7 +522,13 @@ def draw_assembly():
         else:
             gl, gr, yc, top = it[3], it[4], it[5], it[6]
             prof, rnd = tabbed_profile(gl, gr, gl - T, gr + T, top)
+            # the finger of the rail's inner ply just in front of the slot stands between the camera and the part of
+            # the left tab inside the slot, so the divider is clipped by its outline (the rail was drawn first)
+            add(f'<clipPath id="slot{len(out)}"><path clip-rule="evenodd" d="M-1e5,-1e5 H1e5 V1e5 H-1e5 Z '
+                f'{svg_path(front_finger_outline(gl, yc))}"/></clipPath>')
+            add(f'<g clip-path="url(#slot{len(out) - 1})">')
             prism(prof, rnd, "xz", yc - T / 2, yc + T / 2, DIVC)
+            add("</g>")
     support3(0, T)
 
 
