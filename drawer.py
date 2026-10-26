@@ -435,31 +435,84 @@ def slot_floor(sx, y0, y1, zf):
     face([(sx, y0, zf), (sx + SLOT_W, y0, zf), (sx + SLOT_W, y1, zf), (sx, y1, zf)], shade(SUP, .6))
 
 
-def support3(y0, y1, used_floors=True):
-    zf = H_FING - TAB   # slot floor height
-    prism([(0, 0), (W, 0), (W, zf), (0, zf)], {0, 1}, "xz", y0, y1, SUP, skip_top=True)
-    for sx in SLOTS:  # slot floors; a used slot's floor is under the rail's tab, which can leave it showing at the tab's rounded corners
-        if used_floors or sx not in USED:
-            slot_floor(sx, y0, y1, zf)
+def support_walls():
+    """(left, right) x of each wall of a support: the stretches between the slots, above the slot floor."""
     edges = [0.0]
     for sx in SLOTS:
         edges += [sx, sx + SLOT_W]
     edges.append(W)
-    for a, b in zip(edges[0::2], edges[1::2]):
-        # a wall next to a used slot is hidden by the rail
-        hidden = any(abs(b - sx) < 1e-9 and sx in USED for sx in SLOTS)
-        rnd = {2, 3}
-        prism([(a, zf), (b, zf), (b, H_FING), (a, H_FING)], rnd, "xz", y0, y1, SUP, skip_x_right=hidden)
+    return list(zip(edges[0::2], edges[1::2]))
+
+
+def wall3(y0, y1, a, b, hidden=False):
+    zf = H_FING - TAB   # slot floor height
+    prism([(a, zf), (b, zf), (b, H_FING), (a, H_FING)], {2, 3}, "xz", y0, y1, SUP, skip_x_right=hidden)
+
+
+def rail_wall(sx, left):
+    """The wall of a support to the left / right of the used slot at sx."""
+    return next((a, b) for a, b in support_walls() if (abs(b - sx) < 1e-9 if left else abs(a - sx - SLOT_W) < 1e-9))
+
+
+def support_floors(y0, y1, used):
+    """Slot floors of a support, of the slots that hold a rail's tab (used) or not. A used slot's floor is under the
+    tab, but shows at the tab's rounded corner."""
+    for sx in SLOTS:
+        if (sx in USED) == used:
+            slot_floor(sx, y0, y1, H_FING - TAB)
+
+
+def support3(y0, y1):
+    """The support without its slot floors and the walls next to used slots: rail3 draws those in the right order
+    around the rail's tab."""
+    zf = H_FING - TAB   # slot floor height
+    prism([(0, 0), (W, 0), (W, zf), (0, zf)], {0, 1}, "xz", y0, y1, SUP, skip_top=True)
+    for a, b in support_walls():
+        if not any(abs(b - sx) < 1e-9 or abs(a - sx - SLOT_W) < 1e-9 for sx in USED):
+            wall3(y0, y1, a, b)
 
 
 def rail3(xl, side, ys):
+    """One rail with the walls of both supports on either side of its tabs. The tab stands in the slot, in front of
+    the wall to its left and behind the wall to its right (the camera is to the right); the wall to the right of the
+    slot also has to be drawn after the outer ply's tab but before the inner ply (back support) / after it (front)."""
     outer, inner = rail_halves(xl, side)
-    for x0, x1, col in sorted([outer, inner]):
-        if (x0, x1, col) == outer:   # outer ply has the end tabs
+    sx = xl if side == "L" else xl + T
+    lw, rw = rail_wall(sx, True), rail_wall(sx, False)
+
+    def left_wall(y0, y1):
+        wall3(y0, y1, *lw, hidden=True)
+
+    def right_wall(y0, y1):
+        wall3(y0, y1, *rw)
+
+    def ply(p):
+        x0, x1, col = p
+        if p == outer:   # outer ply has the end tabs
             prism(RAIL_PROFILE, RAIL_RND, "yz", x0, x1, col)
-        else:                        # inner ply stops at the supports; slots are real geometry
+        else:            # inner ply stops at the supports; slots are real geometry
             prof, rnd = notched(BODY0, BODY1, H_FING, [(yc - NOTCH_W / 2, yc + NOTCH_W / 2) for yc in NOTCH_YS], TAB)
             prism(prof, rnd, "yz", x0, x1, col)
+
+    back, front = (D - T, D), (0, T)
+    left_wall(*back)
+    if side == "L":   # outer ply first, then the inner ply, which is in front of the back wall to the right of the slot
+        left_wall(*front)
+        ply(outer)
+        right_wall(*back)
+        ply(inner)
+    else:             # inner ply first: it is behind the front wall to the left of the slot
+        ply(inner)
+        left_wall(*front)
+        ply(outer)
+        right_wall(*back)
+    # the floor of the front slot goes over the end of the rail's body behind the support, but not over the tab
+    add(f'<clipPath id="floor{len(out)}"><path clip-rule="evenodd" d="M-1e5,-1e5 H1e5 V1e5 H-1e5 Z '
+        f'{svg_path(front_tab_outline(sx))}"/></clipPath>')
+    add(f'<g clip-path="url(#floor{len(out) - 1})">')
+    slot_floor(sx, *front, H_FING - TAB)
+    add("</g>")
+    right_wall(*front)
 
 
 BOX_EDGE = "#1f2937"
@@ -528,7 +581,10 @@ def svg_path(pts):
 def draw_assembly():
     """Back to front: supports, rails and dividers. Each divider is drawn as one piece: its body and the two tabs
     that stand in the rail slots (and rise above the inner plies) are a single extruded profile."""
+    support_floors(D - T, D, True)
+    support_floors(D - T, D, False)
     support3(D - T, D)
+    support_floors(0, T, False)
     items = []
     for i, (xl, side, _) in enumerate(RAILS):
         items.append((xl, 0, "rail", xl, side, divider_ys(i // 2)))
@@ -551,15 +607,7 @@ def draw_assembly():
             add(f'<g clip-path="url(#slot{len(out) - 1})">')
             prism(prof, rnd, "xz", yc - T / 2, yc + T / 2, DIVC)
             add("</g>")
-    # the front support is drawn last. The floor of a slot that holds a rail's tab goes in first, clipped by the tab's
-    # outline: it covers the end of the rail's body behind the support, and shows at the tab's rounded corner
-    for sx in sorted(USED):
-        add(f'<clipPath id="floor{len(out)}"><path clip-rule="evenodd" d="M-1e5,-1e5 H1e5 V1e5 H-1e5 Z '
-            f'{svg_path(front_tab_outline(sx))}"/></clipPath>')
-        add(f'<g clip-path="url(#floor{len(out) - 1})">')
-        slot_floor(sx, 0, T, H_FING - TAB)
-        add("</g>")
-    support3(0, T, used_floors=False)
+    support3(0, T)
 
 
 draw_assembly()
