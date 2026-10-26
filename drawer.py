@@ -396,6 +396,10 @@ def prism(profile, rounded, plane, off0, off1, col, skip_x_right=False, skip_top
     def bright(n):
         return min(1.0, .7 + .3 * max(n[2], 0) + .15 * max(-n[1], 0))
 
+    # camera direction, to draw the side faces far to near (the profile may be concave: a tab can hide the end of
+    # the body behind it)
+    cam_dir = [CAM[k] - (W / 2, D / 2, H / 2)[k] for k in range(3)]
+    side = []
     for i in range(m):
         p, q = pts[i], pts[(i + 1) % m]
         du, dv = q[0] - p[0], q[1] - p[1]
@@ -403,12 +407,16 @@ def prism(profile, rounded, plane, off0, off1, col, skip_x_right=False, skip_top
         if l < 1e-9:
             continue
         n = nrm(sgn * dv / l, -sgn * du / l)
-        if not visible(n, to3((p[0] + q[0]) / 2, (p[1] + q[1]) / 2, (off0 + off1) / 2)):
+        mid = to3((p[0] + q[0]) / 2, (p[1] + q[1]) / 2, (off0 + off1) / 2)
+        if not visible(n, mid):
             continue
         if skip_x_right and n[0] > 0.99:
             continue
         if skip_top and n[2] > 0.99:
             continue
+        side.append((sum(mid[k] * cam_dir[k] for k in range(3)), i, n))
+    for _, i, n in sorted(side):
+        p, q = pts[i], pts[(i + 1) % m]
         c = shade(col, bright(n))
         quad = [P(*to3(*p, off0)), P(*to3(*q, off0)), P(*to3(*q, off1)), P(*to3(*p, off1))]
         poly(quad, c, c if smooth[i] else LINE, 0.6 if smooth[i] else 0.8)
@@ -423,12 +431,16 @@ def prism(profile, rounded, plane, off0, off1, col, skip_x_right=False, skip_top
                 FACE_HOOK("cap", cap, plane)
 
 
-def support3(y0, y1):
+def slot_floor(sx, y0, y1, zf):
+    face([(sx, y0, zf), (sx + SLOT_W, y0, zf), (sx + SLOT_W, y1, zf), (sx, y1, zf)], shade(SUP, .6))
+
+
+def support3(y0, y1, used_floors=True):
     zf = H_FING - TAB   # slot floor height
     prism([(0, 0), (W, 0), (W, zf), (0, zf)], {0, 1}, "xz", y0, y1, SUP, skip_top=True)
-    for sx in SLOTS:  # slot floors
-        if sx not in USED:
-            face([(sx, y0, zf), (sx + SLOT_W, y0, zf), (sx + SLOT_W, y1, zf), (sx, y1, zf)], shade(SUP, .6))
+    for sx in SLOTS:  # slot floors; a used slot's floor is under the rail's tab, which can leave it showing at the tab's rounded corners
+        if used_floors or sx not in USED:
+            slot_floor(sx, y0, y1, zf)
     edges = [0.0]
     for sx in SLOTS:
         edges += [sx, sx + SLOT_W]
@@ -479,16 +491,10 @@ def drawer_box():
 text(box_x, py - 22, "PERSPECTIVE (front and right walls omitted for clarity)", 16, "start", weight="bold")
 drawer_box()
 
-def front_finger_outline(gl, yc):
-    """Screen outline of the finger of the left rail's inner ply directly in front of the divider slot at yc,
-    from the slot floor up (the part that can hide the divider's tab)."""
-    prev = [y for y in NOTCH_YS if y < yc - 1e-9]
-    y0 = prev[-1] + NOTCH_W / 2 if prev else BODY0
-    y1 = yc - NOTCH_W / 2
-    prof, _ = rounded_profile([(y0, Z_TAB), (y1, Z_TAB), (y1, H_FING), (y0, H_FING)], {2, 3}, TAB_R)
-    pts = sorted({P(x, y, z) for x in (gl - T, gl) for y, z in prof})
+def convex_hull(pts):
+    pts = sorted(set(pts))
     hull = []
-    for seq in (pts, pts[::-1]):   # monotone-chain convex hull (the finger is convex)
+    for seq in (pts, pts[::-1]):   # monotone chain
         part = []
         for p in seq:
             while len(part) >= 2 and ((part[-1][0] - part[-2][0]) * (p[1] - part[-2][1])
@@ -497,6 +503,22 @@ def front_finger_outline(gl, yc):
             part.append(p)
         hull += part[:-1]
     return hull
+
+
+def front_finger_outline(gl, yc):
+    """Screen outline of the finger of the left rail's inner ply directly in front of the divider slot at yc,
+    from the slot floor up (the part that can hide the divider's tab)."""
+    prev = [y for y in NOTCH_YS if y < yc - 1e-9]
+    y0 = prev[-1] + NOTCH_W / 2 if prev else BODY0
+    y1 = yc - NOTCH_W / 2
+    prof, _ = rounded_profile([(y0, Z_TAB), (y1, Z_TAB), (y1, H_FING), (y0, H_FING)], {2, 3}, TAB_R)
+    return convex_hull([P(x, y, z) for x in (gl - T, gl) for y, z in prof])
+
+
+def front_tab_outline(sx):
+    """Screen outline of the front end tab of the rail's outer ply standing in the support slot at sx."""
+    prof, _ = rounded_profile([(0, Z_TAB), (BODY0, Z_TAB), (BODY0, H_PLAIN), (0, H_PLAIN)], {0, 3}, TAB_R)
+    return convex_hull([P(x, y, z) for x in (sx, sx + SLOT_W) for y, z in prof])
 
 
 def svg_path(pts):
@@ -529,7 +551,15 @@ def draw_assembly():
             add(f'<g clip-path="url(#slot{len(out) - 1})">')
             prism(prof, rnd, "xz", yc - T / 2, yc + T / 2, DIVC)
             add("</g>")
-    support3(0, T)
+    # the front support is drawn last. The floor of a slot that holds a rail's tab goes in first, clipped by the tab's
+    # outline: it covers the end of the rail's body behind the support, and shows at the tab's rounded corner
+    for sx in sorted(USED):
+        add(f'<clipPath id="floor{len(out)}"><path clip-rule="evenodd" d="M-1e5,-1e5 H1e5 V1e5 H-1e5 Z '
+            f'{svg_path(front_tab_outline(sx))}"/></clipPath>')
+        add(f'<g clip-path="url(#floor{len(out) - 1})">')
+        slot_floor(sx, 0, T, H_FING - TAB)
+        add("</g>")
+    support3(0, T, used_floors=False)
 
 
 draw_assembly()
