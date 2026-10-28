@@ -57,9 +57,13 @@ TEST_DEPTH = 0.5                # finger / slot depth: much shallower than the r
 TEST_PITCH = 0.75               # slot pitch, centre to centre (the same as the rail slots)
 TEST_STEPS_MM = [k / 10 for k in range(-5, 6)]    # offset from nominal, mm: -0.5 ... +0.5 in 0.1 mm steps; slot width and hole diameter
 TEST_NOMINAL = T                # the plywood thickness the slots are relative to (change to the measured value)
+FINE_COUNT = 4                  # fine test pieces: two in each of the two rows with a support
+FINE_L = 4.0                    # length of the strip; the free end of the support rows is 4.5"
+FINE_DEPTH = 0.9375             # slot / finger depth: longer than the 1/2" of the long test pieces, no dowel holes to leave room for
+FINE_STEPS_MM = [-0.06, -0.03, 0.0, 0.03, 0.06]   # offset from nominal, mm: five slots, finer steps
 LABEL_H = 0.18                  # height of the engraved offset labels
 LABEL_GAP = 0.09                # between a dowel hole and its label
-LENGTH["T"] = TEST_L
+LENGTH["T"], LENGTH["U"] = TEST_L, FINE_L
 
 
 # ---- rows: exact search -----------------------------------------------------------
@@ -127,7 +131,8 @@ def make_parts():
         L = gr - gl + 2 * T
         dpts, drnd = d.divider_profile(L, d.DIV_H[gi])
         out[k] = part(k, f"DIVIDER {k}  {d.frac(gr - gl)} gap", dpts, drnd, [], L, d.DIV_H[gi], col)
-    out["T"] = test_part()
+    out["T"] = test_part("T", "TEST", TEST_L, TEST_DEPTH, TEST_STEPS_MM, 1, True)
+    out["U"] = test_part("U", "TEST FINE", FINE_L, FINE_DEPTH, FINE_STEPS_MM, 2, False)
     return out
 
 
@@ -156,24 +161,27 @@ def label_strokes(text, cx, v0, h):
     return out
 
 
-def test_part():
+def test_part(kind, name, length, depth, steps_mm, decimals, with_holes):
     """Strip TEST_H wide with a row of slots in its top edge, narrowest to widest from left to right, and under each slot
-    an engraved offset label and a dowel hole whose diameter has the same offset as the slot width, plus an
-    unlabelled hole between each pair of those at the mean offset."""
-    n = len(TEST_STEPS_MM)
+    its engraved offset from nominal. With holes: a dowel hole under each slot whose diameter has the same offset as the
+    slot width, plus an unlabelled hole between each pair of those at the mean offset."""
+    n = len(steps_mm)
     slots, holes, labels = [], [], []
-    spine = TEST_H - TEST_DEPTH                                  # solid depth under the slot floors
-    margin = (spine - d.DOWEL_D - LABEL_GAP - LABEL_H) / 2       # the hole and the label are centred in it
-    for k, mm in enumerate(TEST_STEPS_MM):
-        c = TEST_L / 2 + (k - (n - 1) / 2) * TEST_PITCH
+    spine = TEST_H - depth                                       # solid depth under the slot floors
+    block = LABEL_H + (d.DOWEL_D + LABEL_GAP if with_holes else 0)
+    margin = (spine - block) / 2                                 # the hole and the label are centred in it
+    for k, mm in enumerate(steps_mm):
+        c = length / 2 + (k - (n - 1) / 2) * TEST_PITCH
         w = TEST_NOMINAL + mm / 25.4
         slots.append((c - w / 2, c + w / 2))
-        holes.append((c, margin + d.DOWEL_D / 2, d.DOWEL_D + mm / 25.4))
-        if k:                                                    # an unlabelled hole between this slot's hole and the last one, at the mean offset
-            holes.append((c - TEST_PITCH / 2, margin + d.DOWEL_D / 2, d.DOWEL_D + (mm + TEST_STEPS_MM[k - 1]) / 2 / 25.4))
-        labels += label_strokes("0.0" if mm == 0 else f"{mm:+.1f}", c, margin + d.DOWEL_D + LABEL_GAP, LABEL_H)
-    pts, rnd = d.notched(0, TEST_L, TEST_H, slots, TEST_DEPTH)
-    p = part("T", "TEST", pts, rnd, holes, TEST_L, TEST_H, "#fbbf24")
+        if with_holes:
+            holes.append((c, margin + d.DOWEL_D / 2, d.DOWEL_D + mm / 25.4))
+            if k:                                                # an unlabelled hole between this slot's hole and the last one, at the mean offset
+                holes.append((c - TEST_PITCH / 2, margin + d.DOWEL_D / 2, d.DOWEL_D + (mm + steps_mm[k - 1]) / 2 / 25.4))
+        text = f"{0:.{decimals}f}" if mm == 0 else f"{mm:+.{decimals}f}"
+        labels += label_strokes(text, c, margin + (d.DOWEL_D + LABEL_GAP if with_holes else 0), LABEL_H)
+    pts, rnd = d.notched(0, length, TEST_H, slots, depth)
+    p = part(kind, name, pts, rnd, holes, length, TEST_H, "#fbbf24" if with_holes else "#fde68a")
     p["engrave"] = labels
     return p
 
@@ -221,14 +229,14 @@ def put(key, x0, ytop, inv):
     dd = path_d(pts, p["rnd"], TAB_R)
     PLACED.append(dict(name=p["name"], pts=d.rounded_profile(pts, p["rnd"], TAB_R, n=6)[0], holes=holes))
     TALLY[key] = TALLY.get(key, 0) + 1
-    CUTG["fingers" if key in "SIT" else "plain"].append(f'<path d="{dd}"/>')
+    CUTG["fingers" if key in "SITU" else "plain"].append(f'<path d="{dd}"/>')
     CUTG["holes"] += [f'<circle cx="{x:.4f}" cy="{y:.4f}" r="{dia / 2:.4f}"/>' for x, y, dia in holes]
     lines = [" ".join(f"{'ML'[j > 0]}{x:.4f},{y:.4f}" for j, (x, y) in enumerate(line)) for line in strokes]
     CUTG["engrave"] += [f'<path d="{ln}"/>' for ln in lines]
     VIEW.append(f'<path d="{dd}" fill="{p["col"]}" stroke="#1f2937" stroke-width="0.03" stroke-linejoin="round"/>')
     VIEW.extend(f'<circle cx="{x:.4f}" cy="{y:.4f}" r="{dia / 2:.4f}" fill="#ffffff" stroke="#1f2937" stroke-width="0.02"/>' for x, y, dia in holes)
     VIEW.extend(f'<path d="{ln}" fill="none" stroke="#b91c1c" stroke-width="0.025" stroke-linecap="round"/>' for ln in lines)
-    if key == "T":
+    if key in "TU":
         return
     tx, ty = to_sheet(x0 + L / 2, ytop + (0.75 if key == "O" else 0.5 * h) + 0.15)
     rot = "" if ORIENT == "long" else f' transform="rotate(90 {tx:.3f} {ty:.3f})"'
@@ -265,6 +273,11 @@ def build():
         sys.exit(f"expected {TEST_COUNT // 2} rows holding only rail inner plies for the test pieces, found {len(inner_rows)}")
     for i in inner_rows:
         rows[i] = ({**rows[i][0], "T": 2}, rows[i][1], True)
+    support_rows = [i for i, (c, _, _) in enumerate(rows) if c["S"]]
+    if len(support_rows) != FINE_COUNT // 2:
+        sys.exit(f"expected {FINE_COUNT // 2} rows with a support for the fine test pieces, found {len(support_rows)}")
+    for i in support_rows:
+        rows[i] = ({**rows[i][0], "U": 2}, rows[i][1], True)
     rows, align = row_order(rows)
     spare = STACK - sum(h for _, h, _ in rows)
     gap = ROW_GAP_SET
@@ -273,16 +286,17 @@ def build():
         gap, pad = (spare - 2 * EDGE) / (len(rows) - 1), EDGE
     y = pad
     for i, (counts, h, fingered) in enumerate(rows):
-        keys = [k for k in "SIOAB" for _ in range(counts.get(k, 0))]
+        keys = [k for k in "SIOAB" for _ in range(counts.get(k, 0))] + ["U"] * (counts.get("U", 0) > 0)
         free = ROW_LEN - sum(LENGTH[k] for k in keys)
         if counts.get("T"):                      # rail inner plies against the sheet edges, the test piece between them
             keys = ["I", "T", "I"]
             inner = (ROW_LEN - 2 * EDGE - sum(LENGTH[k] for k in keys)) / 2
             if inner < G - 1e-9 or h < 2 * TEST_H + G - 1e-9:
-                sys.exit(f"the test pieces do not fit in the middle of the rail inner ply row for the middle of the rail inner ply row ({inner:.3f}\" gap, needs {G:g}\")")
+                sys.exit(f"the test pieces do not fit in the middle of the rail inner ply row ({inner:.3f}\" gap, needs {G:g}\")")
             x = EDGE
         elif i in align:                           # a support row is pushed against one side, its other parts beside it
-            keys.sort(key=lambda k: (k == "S") if align[i] == "right" else (k != "S"))
+            rank = {"U": 0, "S": 2}                  # the fine test piece goes at the free end, the support against the sheet edge
+            keys.sort(key=lambda k: rank.get(k, 1) * (1 if align[i] == "right" else -1))
             inner = max(gap, G)
             x = ROW_LEN - EDGE - sum(LENGTH[k] for k in keys) - inner * (len(keys) - 1) if align[i] == "right" else EDGE
         else:
@@ -293,7 +307,9 @@ def build():
             x = space
         for k in keys:
             put(k, x, y, False)                  # fingers face the row above, which is plain
-            if k == "T":                         # the second test piece below the first, turned round so its fingers face the plain row below
+            if k in "TU":                        # the second test piece below the first, turned round so its fingers face the plain row below
+                if h < 2 * TEST_H + G - 1e-9:
+                    sys.exit(f"two test pieces do not fit in a row {h:g}\" tall")
                 put(k, x, y + h - TEST_H, True)
             x += LENGTH[k] + inner
         y += h + gap
@@ -387,8 +403,8 @@ def check_sheet(placed, oy, label):
 
 # ---- write files ---------------------------------------------------------------
 ERRORS, MIN_GAP, MIN_EDGE = check_sheet(PLACED, 0, "sheet")
-if TALLY != {**NEED, "T": TEST_COUNT}:
-    ERRORS.append((f"part counts {TALLY} do not match what the system needs {NEED} plus {TEST_COUNT} test pieces", (0, 0)))
+if TALLY != {**NEED, "T": TEST_COUNT, "U": FINE_COUNT}:
+    ERRORS.append((f"part counts {TALLY} do not match what the system needs {NEED} plus {TEST_COUNT} + {FINE_COUNT} test pieces", (0, 0)))
 VIEW_OY = 8
 for msg, (mx, my) in ERRORS:
     VIEW.append(f'<circle cx="{mx:.3f}" cy="{my:.3f}" r="0.45" fill="#ef4444" fill-opacity="0.35" stroke="#dc2626" stroke-width="0.12"/>')
@@ -405,24 +421,25 @@ TAG = f"{ORIENT}_x{H_F:g}"
 open(f"cut_{TAG}_sheet1.svg", "w").write("\n".join(cut))
 
 GRAIN_NOTE = ' (grain along the 48" side runs along the fingers)' if ORIENT == "short" else ""
-desc = ", ".join(f"{TALLY[k]} x {PARTS[k]['name'].split('  ')[0]}" for k in "SIOABT")
+desc = ", ".join(f"{TALLY[k]} x {PARTS[k]['name'].split('  ')[0]}" for k in "SIOABTU")
 head = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 -1 {SHEET_W + 2:g} {SHEET_H + VIEW_OY + 2:g}" font-family="Helvetica, Arial, sans-serif">',
         f'<rect x="-1" y="-1" width="{SHEET_W + 2:g}" height="{SHEET_H + VIEW_OY + 2:g}" fill="#ffffff"/>',
         '<text x="0" y="1.2" font-size="1.5" font-weight="bold" fill="#111827">Pan &amp; Lid Drawer Storage - nested layout</text>',
         f'<text x="0" y="2.3" font-size="0.7" fill="#6b7280">3/8" baltic birch; parts run along the {"34" if ORIENT == "short" else "48"}" side{GRAIN_NOTE}.</text>',
         f'<text x="0" y="3.0" font-size="0.7" fill="#6b7280">Slotted parts (supports, rail inner plies) and divider B {H_F:g}" tall; rail outer plies and divider A {H_P:g}" tall; fingers and slots {d.TAB_T:g}" deep.</text>',
         f'<text x="0" y="3.7" font-size="0.7" fill="#6b7280">Rows with fingers alternate with plain rows; {ROW_GAP:.3f}" between rows, {STACK_PAD:.3f}" padding at the ends of the stack and at least {EDGE:g}" at the ends of the rows.</text>',
-        f'<text x="0" y="4.4" font-size="0.7" fill="#6b7280">Sheet {SHEET_W:g}" x {SHEET_H:g}": {desc}. Test pieces: slots (from {TEST_NOMINAL:g}") and dowel holes (from {d.DOWEL_D:g}") offset {TEST_STEPS_MM[0]:+g} to {TEST_STEPS_MM[-1]:+g} mm, labelled (narrow to wide, small to large, left to right).</text>',
-        '<text x="0" y="6.4" font-size="0.7" fill="#6b7280">Cut order (cut file colours): 1 magenta = engraved offset labels, 2 red = dowel holes, 3 blue = fingered parts (supports, rail inner plies, test pieces), 4 green = plain parts (rail outer plies, dividers).</text>']
+        f'<text x="0" y="4.4" font-size="0.7" fill="#6b7280">Sheet {SHEET_W:g}" x {SHEET_H:g}": {desc}.</text>',
+        '<text x="0" y="6.4" font-size="0.7" fill="#6b7280">Cut order (cut file colours): 1 magenta = engraved labels, 2 red = dowel holes, 3 blue = fingered parts, 4 green = plain parts.</text>',
+        f'<text x="0" y="7.1" font-size="0.7" fill="#6b7280">Test pieces (offsets engraved): 4 x TEST, slots and dowel holes {TEST_STEPS_MM[0]:+g} to {TEST_STEPS_MM[-1]:+g} mm; 4 x TEST FINE, 5 slots {FINE_STEPS_MM[0]:+g} to {FINE_STEPS_MM[-1]:+g} mm, no holes.</text>']
 if ERRORS:
     head.append(f'<text x="0" y="5.4" font-size="0.8" font-weight="bold" fill="#dc2626">LAYOUT ERRORS ({len(ERRORS)}): ' + "; ".join(m for m, _ in ERRORS[:3]).replace("&", "&amp;").replace('"', "&quot;") + (" ..." if len(ERRORS) > 3 else "") + "</text>")
 else:
     head.append(f'<text x="0" y="5.4" font-size="0.8" font-weight="bold" fill="#15803d">Layout check passed: no overlaps; smallest gap between parts {MIN_GAP:.3f}&quot; (min {G:g}&quot;), smallest edge padding {MIN_EDGE:.3f}&quot; (min {EDGE:g}&quot;).</text>')
 sheet = [f'<g transform="translate(0 {VIEW_OY})">', f'<rect x="0" y="0" width="{SHEET_W:g}" height="{SHEET_H:g}" fill="#fbf7ee" stroke="#6b7280" stroke-width="0.08"/>'] + VIEW + ["</g>"]
 open(f"layout_{TAG}.svg", "w").write("\n".join(head + sheet + ["</svg>"]))
-print("totals:", {k: TALLY[k] for k in "SIOABT"})
+print("totals:", {k: TALLY[k] for k in "SIOABTU"})
 print(f"x = {H_F:g} (plain {H_P:g}, fingers {d.TAB_T:g}); {ORIENT} orientation: {len(ROWS)} rows need {STACK_USED:.3f}\" of the {STACK:g}\" side at the minimum gap; row gap {ROW_GAP:.3f}\", padding {STACK_PAD:.3f}\" at the ends of the stack, {EDGE:g}\" at the ends of the rows")
-print("rows, top to bottom: " + " | ".join(("F " if f else "P ") + ("ITI" if c.get("T") else "".join(k * c[k] for k in "SIOAB" if k in c)) for c, _, f in ROWS))
+print("rows, top to bottom: " + " | ".join(("F " if f else "P ") + ("ITI" if c.get("T") else "".join(k * c[k] for k in "SIOAB" if k in c) + ("+U" if c.get("U") else "")) for c, _, f in ROWS))
 if ERRORS:
     print(f"LAYOUT ERRORS ({len(ERRORS)}):")
     for m, _ in ERRORS:
