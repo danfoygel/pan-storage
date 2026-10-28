@@ -30,7 +30,7 @@ drawings and the nested cut files regenerate together.
 ![Nested layout on one 48 x 34 sheet](layout_long_x3.svg)
 
 One 48" × 34" sheet holds the whole system: 2 supports, 4 rail outer plies, 4 rail inner plies,
-**7 divider A and 7 divider B**, plus **6 test pieces** and **10 laser test rectangles** (see below). The layout passes the built-in overlap check (smallest gap between parts
+**7 divider A and 7 divider B**, plus **6 test pieces** and **17 laser test rectangles** (see below). The layout passes the built-in overlap check (smallest gap between parts
 0.125", the minimum; smallest edge padding 0.250").
 
 ## Inputs
@@ -136,11 +136,12 @@ The two in a row are stacked with their flat edges facing, one turned upside dow
 Push a scrap of the plywood into each slot and a dowel into each hole, pick the ones that are snug but go in by hand,
   and put those sizes in [CLEARANCE.md](CLEARANCE.md) (A1/A2, C1, D1, E1). The labels say which offset to use.
 
-### Laser test rectangles (10, not part of the system)
+### Laser test rectangles (17, not part of the system)
 
 The bottom row, which holds four divider B, has them pushed out to the two sides (a pair against each edge of the
 sheet), which frees 4 1/2" in the middle. That holds **10 plain rectangles, 3/4" × 1 1/2" with 1/8" rounded corners**,
-in a 5 × 2 grid. The size doesn't matter: cut them **first** to tune the laser's power and speed on the actual plywood
+in a 5 × 2 grid. Another **7 lie down (1 1/2" × 3/4")** in a row in the top right corner, in the 1" under the divider B
+(the top row is 4" tall, divider B only 3"). The size doesn't matter: cut them **first** to tune the laser's power and speed on the actual plywood
 before the real parts. They are their own (orange) layer in the cut file for that reason, so they can be given
 different settings, run on their own, or left out.
 
@@ -206,7 +207,7 @@ or bracing is needed.
   | 3 3/16" | 4 3/16" | 1 19/32" | 34.188" (does not fit) |
 
   At **x = 3"** the 9 rows are
-  `P OAB | F BS+U | P OAA | F ITI | P OAA | F ITI | P OAA | F SB+U | P BBBB` (U = a fine test piece; the last row has two divider B at each side and the laser test rectangles between them)
+  `P OAB | F BS+U | P OAA | F ITI | P OAA | F ITI | P OAA | F SB+U | P BBBB` (U = a fine test piece; the last row has two divider B at each side and laser test rectangles between them, and the first row has a row of them under its divider B)
   (P / F = plain / fingered row; O, A, B = rail outer ply, divider A, divider B; S, I = support, rail inner ply).
   The fingered rows run in a fixed order: a support row with the **support pushed against the right edge**, the two
   rail inner ply rows, then the other support row with the **support pushed against the left edge**.
@@ -228,7 +229,7 @@ or bracing is needed.
 The cut file has five groups, each a different colour, so the laser software shows them as five layers
 that can be ordered:
 
-1. **Orange: the 10 laser test rectangles.** Run first to check and set the power and speed (see above), and
+1. **Orange: the 17 laser test rectangles.** Run first to check and set the power and speed (see above), and
    skip them later if the settings are already known.
 2. **Magenta: the engraved offset labels** on all 6 test pieces (vector engrave, light power). Engraved before
    anything is cut through, while the sheet is intact.

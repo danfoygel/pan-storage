@@ -63,11 +63,13 @@ FINE_H = H_F                    # as tall as the rail inner plies, with fingers 
 FINE_DEPTH = d.TAB              # slot / finger depth: the same 1 1/2" as the rail inner plies
 FINE_STEPS_MM = [-0.06, -0.03, 0.0, 0.03, 0.06]   # offset from nominal, mm: five slots, finer steps
 RECT_W, RECT_H = 0.75, 1.5      # laser setting test rectangles (rounded corners), cut first to tune power and speed
+RECT2_COUNT = 7                 # the same rectangles lying down (1 1/2" x 3/4"), in a row under the divider B in the top row
 RECT_COLS, RECT_ROWS = 5, 2     # in the middle of the bottom row, which has its four divider B pushed out to the sides
 LABEL_H = 0.18                  # height of the engraved offset labels
 LABEL_GAP = 0.09                # between a dowel hole and its label
 HALF_WEB = 0.125                # the unlabelled in-between holes are raised until their edge is this far from the slot corners
 LENGTH["T"], LENGTH["U"], LENGTH["R"] = TEST_L, FINE_L, RECT_W
+LENGTH["Q"] = RECT_H
 
 
 # ---- rows: exact search -----------------------------------------------------------
@@ -136,6 +138,7 @@ def make_parts():
         dpts, drnd = d.divider_profile(L, d.DIV_H[gi])
         out[k] = part(k, f"DIVIDER {k}  {d.frac(gr - gl)} gap", dpts, drnd, [], L, d.DIV_H[gi], col)
     out["R"] = part("R", "LASER TEST", [(0, 0), (RECT_W, 0), (RECT_W, RECT_H), (0, RECT_H)], {0, 1, 2, 3}, [], RECT_W, RECT_H, "#fdba74")
+    out["Q"] = part("Q", "LASER TEST", [(0, 0), (RECT_H, 0), (RECT_H, RECT_W), (0, RECT_W)], {0, 1, 2, 3}, [], RECT_H, RECT_W, "#fdba74")
     out["T"] = test_part("T", "TEST", TEST_L, TEST_H, TEST_DEPTH, TEST_STEPS_MM, lambda mm: f"{round(mm * 10):+d}" if mm else "0", True)
     out["U"] = test_part("U", "TEST FINE", FINE_L, FINE_H, FINE_DEPTH, FINE_STEPS_MM, lambda mm: f"{mm:+.2f}" if mm else "0.00", False)
     return out
@@ -241,14 +244,14 @@ def put(key, x0, ytop, inv):
     dd = path_d(pts, p["rnd"], TAB_R)
     PLACED.append(dict(name=p["name"], pts=d.rounded_profile(pts, p["rnd"], TAB_R, n=6)[0], holes=holes))
     TALLY[key] = TALLY.get(key, 0) + 1
-    CUTG["rects" if key == "R" else "fingers" if key in "SITU" else "plain"].append(f'<path d="{dd}"/>')
+    CUTG["rects" if key in "RQ" else "fingers" if key in "SITU" else "plain"].append(f'<path d="{dd}"/>')
     CUTG["holes"] += [f'<circle cx="{x:.4f}" cy="{y:.4f}" r="{dia / 2:.4f}"/>' for x, y, dia in holes]
     lines = [" ".join(f"{'ML'[j > 0]}{x:.4f},{y:.4f}" for j, (x, y) in enumerate(line)) for line in strokes]
     CUTG["engrave"] += [f'<path d="{ln}"/>' for ln in lines]
     VIEW.append(f'<path d="{dd}" fill="{p["col"]}" stroke="#1f2937" stroke-width="0.03" stroke-linejoin="round"/>')
     VIEW.extend(f'<circle cx="{x:.4f}" cy="{y:.4f}" r="{dia / 2:.4f}" fill="#ffffff" stroke="#1f2937" stroke-width="0.02"/>' for x, y, dia in holes)
     VIEW.extend(f'<path d="{ln}" fill="none" stroke="#b91c1c" stroke-width="0.025" stroke-linecap="round"/>' for ln in lines)
-    if key in "TUR":
+    if key in "TURQ":
         return
     tx, ty = to_sheet(x0 + L / 2, ytop + (0.75 if key == "O" else 0.5 * h) + 0.15)
     rot = "" if ORIENT == "long" else f' transform="rotate(90 {tx:.3f} {ty:.3f})"'
@@ -294,6 +297,10 @@ def build():
     if len(b_rows) != 1:
         sys.exit(f"expected one row holding only divider B for the laser test rectangles, found {len(b_rows)}")
     rows[b_rows[0]] = ({**rows[b_rows[0]][0], "R": RECT_COLS * RECT_ROWS}, rows[b_rows[0]][1], False)
+    q_rows = [i for i, (c, _, _) in enumerate(rows) if c["O"] == 1 and c["A"] == 1 and c["B"] == 1 and not c["S"] and not c["I"]]
+    if len(q_rows) != 1:
+        sys.exit(f"expected one row with a rail outer ply, a divider A and a divider B for the test rectangles, found {len(q_rows)}")
+    rows[q_rows[0]] = ({**rows[q_rows[0]][0], "Q": RECT2_COUNT}, rows[q_rows[0]][1], False)
     rows, align = row_order(rows)
     spare = STACK - sum(h for _, h, _ in rows)
     gap = ROW_GAP_SET
@@ -337,13 +344,24 @@ def build():
             if space < EDGE:                     # ... unless that would crowd the sheet edge: then pad EDGE and share the rest
                 space, inner = EDGE, (free - 2 * EDGE) / (len(keys) - 1)
             x = space
+        xs = {}
         for k in keys:
+            xs[k] = x
             put(k, x, y, False)                  # fingers face the row above, which is plain
             if k == "T":                         # the second test piece below the first, turned round so its fingers face the plain row below
                 if h < 2 * TEST_H + G - 1e-9:
                     sys.exit(f"two test pieces do not fit in a row {h:g}\" tall")
                 put(k, x, y + h - TEST_H, True)
             x += LENGTH[k] + inner
+        if counts.get("Q"):                      # test rectangles lying down under the divider B (3" tall in the 4" row), between the divider A and the sheet edge
+            x_lo, x_hi = xs["A"] + LENGTH["A"] + G, ROW_LEN - EDGE
+            y_lo, y_hi = y + PARTS["B"]["H"] + G, y + h + gap - G
+            gx = (x_hi - x_lo - RECT2_COUNT * RECT_H) / (RECT2_COUNT + 1)
+            gy = (y_hi - y_lo - RECT_W) / 2
+            if gx < 0 or gy < 0:
+                sys.exit(f"the {RECT2_COUNT} test rectangles do not fit under the divider B (gaps {gx:.3f}\" and {gy:.3f}\")")
+            for c in range(RECT2_COUNT):
+                put("Q", x_lo + gx + c * (RECT_H + gx), y_lo + gy, False)
         y += h + gap
     return used, gap, pad, rows
 
@@ -435,7 +453,7 @@ def check_sheet(placed, oy, label):
 
 # ---- write files ---------------------------------------------------------------
 ERRORS, MIN_GAP, MIN_EDGE = check_sheet(PLACED, 0, "sheet")
-if TALLY != {**NEED, "T": TEST_COUNT, "U": FINE_COUNT, "R": RECT_COLS * RECT_ROWS}:
+if TALLY != {**NEED, "T": TEST_COUNT, "U": FINE_COUNT, "R": RECT_COLS * RECT_ROWS, "Q": RECT2_COUNT}:
     ERRORS.append((f"part counts {TALLY} do not match what the system needs {NEED} plus {TEST_COUNT} + {FINE_COUNT} test pieces", (0, 0)))
 VIEW_OY = 8
 for msg, (mx, my) in ERRORS:
@@ -453,7 +471,7 @@ TAG = f"{ORIENT}_x{H_F:g}"
 open(f"cut_{TAG}_sheet1.svg", "w").write("\n".join(cut))
 
 GRAIN_NOTE = ' (grain along the 48" side runs along the fingers)' if ORIENT == "short" else ""
-desc = ", ".join(f"{TALLY[k]} x {PARTS[k]['name'].split('  ')[0]}" for k in "SIOABTUR")
+desc = ", ".join(f"{TALLY[k]} x {PARTS[k]['name'].split('  ')[0]}" for k in "SIOABTURQ")
 head = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 -1 {SHEET_W + 2:g} {SHEET_H + VIEW_OY + 2:g}" font-family="Helvetica, Arial, sans-serif">',
         f'<rect x="-1" y="-1" width="{SHEET_W + 2:g}" height="{SHEET_H + VIEW_OY + 2:g}" fill="#ffffff"/>',
         '<text x="0" y="1.2" font-size="1.5" font-weight="bold" fill="#111827">Pan &amp; Lid Drawer Storage - nested layout</text>',
@@ -474,7 +492,7 @@ _webs = sorted((math.hypot(a[0] - b[0], a[1] - b[1]) - (a[2] + b[2]) / 2, a[2] +
 _big = sorted(range(len(_h)), key=lambda i: -_h[i][2])[:2]
 _bw = math.hypot(_h[_big[0]][0] - _h[_big[1]][0], _h[_big[0]][1] - _h[_big[1]][1]) - (_h[_big[0]][2] + _h[_big[1]][2]) / 2
 print(f"test pieces: wall between the two largest dowel holes {_bw:.4f}\" ({_bw * 25.4:.2f} mm); thinnest wall between any two holes {_webs[0][0]:.4f}\" ({_webs[0][0] * 25.4:.2f} mm); in-between holes at {_h[2][1]:.4f}\" above the flat edge, main holes at {_h[0][1]:.4f}\"")
-print("totals:", {k: TALLY[k] for k in "SIOABTUR"})
+print("totals:", {k: TALLY[k] for k in "SIOABTURQ"})
 print(f"x = {H_F:g} (plain {H_P:g}, fingers {d.TAB_T:g}); {ORIENT} orientation: {len(ROWS)} rows need {STACK_USED:.3f}\" of the {STACK:g}\" side at the minimum gap; row gap {ROW_GAP:.3f}\", padding {STACK_PAD:.3f}\" at the ends of the stack, {EDGE:g}\" at the ends of the rows")
 print("rows, top to bottom: " + " | ".join(("F " if f else "P ") + ("ITI" if c.get("T") else "".join(k * c[k] for k in "SIOAB" if k in c) + ("+U" if c.get("U") else "")) for c, _, f in ROWS))
 if ERRORS:
