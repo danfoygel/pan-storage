@@ -67,7 +67,6 @@ RECT2_COUNT = 7                 # the same rectangles lying down (1 1/2" x 3/4")
 RECT_COLS, RECT_ROWS = 5, 2     # in the middle of the bottom row, which has its four divider B pushed out to the sides
 LABEL_H = 0.18                  # height of the engraved offset labels
 LABEL_GAP = 0.09                # between a dowel hole and its label
-HALF_WEB = 0.125                # the unlabelled in-between holes are raised until their edge is this far from the slot corners
 LENGTH["T"], LENGTH["U"], LENGTH["R"] = TEST_L, FINE_L, RECT_W
 LENGTH["Q"] = RECT_H
 
@@ -183,12 +182,25 @@ def test_part(kind, name, length, height, depth, steps_mm, label_fmt, with_holes
     for c, mm in zip(centres, steps_mm):
         w = TEST_NOMINAL + mm / 25.4
         slots.append((c - w / 2, c + w / 2))
-    v_mid = math.inf                                             # height of the in-between holes: as high as the slot corners allow
-    for k in range(1, n if with_holes else 0):
-        x, r = (centres[k] + centres[k - 1]) / 2, (d.DOWEL_D + (steps_mm[k] + steps_mm[k - 1]) / 2 / 25.4) / 2
-        for cx in (slots[k - 1][1], slots[k][0]):
-            if r + HALF_WEB > abs(cx - x):
-                v_mid = min(v_mid, height - depth - math.sqrt((r + HALF_WEB) ** 2 - (cx - x) ** 2))
+    v_main = margin + d.DOWEL_D / 2
+    mids = [((centres[k] + centres[k - 1]) / 2, (d.DOWEL_D + (steps_mm[k] + steps_mm[k - 1]) / 2 / 25.4)) for k in range(1, n if with_holes else 1)]
+    mains = [(centres[k], d.DOWEL_D + steps_mm[k] / 25.4) for k in range(n)]
+
+    def walls(v):
+        """(smallest wall from an in-between hole to a slot corner, smallest wall from it to a labelled hole) with the in-between holes at height v."""
+        corner = math.inf
+        for k, (x, dia) in enumerate(mids):
+            for cx in (slots[k][1], slots[k + 1][0]):
+                corner = min(corner, math.hypot(cx - x, height - depth - v) - dia / 2)
+        hole = min(math.hypot(x - mx, v - v_main) - (dia + md) / 2 for x, dia in mids for mx, md in mains if abs(mx - x) < TEST_PITCH)
+        return corner, hole
+    v_mid = v_main
+    if with_holes:                                               # raise the in-between holes until the wall to the slot corners and the wall to the labelled holes are equal
+        lo, hi = v_main, height - depth
+        for _ in range(60):
+            v_mid = (lo + hi) / 2
+            corner, hole = walls(v_mid)
+            lo, hi = (v_mid, hi) if corner > hole else (lo, v_mid)
     for k, (c, mm) in enumerate(zip(centres, steps_mm)):
         if with_holes:
             holes.append((c, margin + d.DOWEL_D / 2, d.DOWEL_D + mm / 25.4))

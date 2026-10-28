@@ -113,10 +113,11 @@ The two in a row are stacked with their flat edges facing, one turned upside dow
   0.1 mm steps**, narrowest and smallest at the left, widest and largest at the right. The slot is 3/8" + the offset
   (9.025 ... 9.525 ... 10.025 mm) and the hole is 1/4" + the offset (5.85 ... 6.35 ... 6.85 mm).
 - Between each pair of those holes is an **unlabelled in-between hole** at the mean offset (−0.45, −0.35 ... +0.45 mm,
-  hole 5.90 ... 6.80 mm), so each half has 21 holes. The in-between holes are raised towards the fingers, up to
-  0.749" from the flat edge (the labelled holes are at 0.334"), until their edge is 1/8" from the slot corners. That
-  puts every hole at least **0.291" (7.4 mm) from the next one**, measured edge to edge; the narrowest pair is the two
-  largest holes, +0.5 and +0.45 mm. (With all 21 holes in one row it was 0.106".) `nest.py` prints this wall.
+  hole 5.90 ... 6.80 mm), so each half has 21 holes. The in-between holes are raised towards the fingers, to
+  0.638" from the flat edge (the labelled holes are at 0.334"), the height where the wall to the slot corners and
+  the wall to the neighbouring labelled holes are equal: **at least 0.214" (5.4 mm) both ways**, measured edge to edge. The
+  narrowest walls are at the large end, around the +0.5 and +0.45 mm holes. (Raising them further widens the wall to
+  the other holes but crowds the slots; with all 21 holes in one row the wall was 0.106".) `nest.py` prints the wall.
 - The **offset is engraved** between each slot and its hole, in **tenths of a millimetre**: "-5" ... "-1", "0", "+1" ... "+5"
   (so "+3" is +0.3 mm). The fine pieces below are labelled in full ("-0.06"). The lettering is single-line strokes
   (a seven-segment style font drawn as paths, so there is nothing to convert), and reads upright with the slots up.
