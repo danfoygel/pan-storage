@@ -18,7 +18,7 @@ new limit for `x`).
 | # | Item | Why it matters | Today | Decision |
 |---|---|---|---|---|
 | A1 | **Actual plywood thickness.** "3/8" baltic birch is often 9 mm (0.354") and varies by sheet. | Every slot, tab and stack height is built from this one number. | exactly 0.375" | measure, then set |
-| A2 | **Laser kerf and compensation.** Show nominal size and let the laser software offset, or bake the offset into the drawing. | Slots come out larger and tabs smaller by about one kerf, and the correction goes the other way for each. | no compensation | measure (the two test pieces on the sheet have slots from −0.5 to +0.5 mm around nominal) |
+| A2 | **Laser kerf and compensation.** Show nominal size and let the laser software offset, or bake the offset into the drawing. | Slots come out larger and tabs smaller by about one kerf, and the correction goes the other way for each. | no compensation | measure (the four test pieces on the sheet have slots from −0.5 to +0.5 mm around nominal) |
 
 ## B. The assembly in the drawer
 
@@ -41,7 +41,7 @@ new limit for `x`).
 
 | # | Interface | Today | Decision |
 |---|---|---|---|
-| D1 | Dowel hole diameter vs dowel. Real dowels are 0.245–0.25", and kerf makes the holes a little larger. | 1/4" exactly. Tighter gives better registration; looser makes glue-up easier. | |
+| D1 | Dowel hole diameter vs dowel. Real dowels are 0.245–0.25", and kerf makes the holes a little larger. | 1/4" exactly. Tighter gives better registration; looser makes glue-up easier.measure (the test pieces have holes from −0.5 to +0.5 mm around 1/4") |
 | D2 | Dowel length vs the 3/4" stack. | Not specified. | |
 | D3 | Glue line thickness. It adds to the rail's 3/4" width and shrinks the gap between rails. | Zero. | |
 | D4 | Inner and outer ply edge alignment at the top and bottom after glue-up. | Flush, nothing set. | |

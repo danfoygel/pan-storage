@@ -18,7 +18,7 @@ drawings and the nested cut files regenerate together.
 | [`perspective.svg`](perspective.svg) | The birch plywood render (above) |
 | [`drawer.svg`](drawer.svg) | The design drawing (below) |
 | [`layout_long_x3.svg`](layout_long_x3.svg) | Colour preview of the nested sheet |
-| [`cut_long_x3_sheet1.svg`](cut_long_x3_sheet1.svg) | 1:1 cut file, 48" × 34", hairline outlines in three colour groups (holes, fingered parts, plain parts), no fill |
+| [`cut_long_x3_sheet1.svg`](cut_long_x3_sheet1.svg) | 1:1 cut file, 48" × 34", hairline outlines in four colour groups (engraved labels, holes, fingered parts, plain parts), no fill |
 | [`CLEARANCE.md`](CLEARANCE.md) | Every fit that needs an explicit clearance, and what the model currently assumes |
 
 ## The design drawing
@@ -30,7 +30,7 @@ drawings and the nested cut files regenerate together.
 ![Nested layout on one 48 x 34 sheet](layout_long_x3.svg)
 
 One 48" × 34" sheet holds the whole system: 2 supports, 4 rail outer plies, 4 rail inner plies,
-**7 divider A and 7 divider B**, plus **2 test pieces** (see below). The layout passes the built-in overlap check (smallest gap between parts
+**7 divider A and 7 divider B**, plus **4 test pieces** (see below). The layout passes the built-in overlap check (smallest gap between parts
 0.125", the minimum; smallest edge padding 0.250").
 
 ## Inputs
@@ -94,26 +94,29 @@ Each rail is two 3/8" plies glued into one 3/4" rail.
 | Rail inner ply | 4 | 19 1/4" × 3" × 3/8" | 24 slots 3/8" × 1 1/2" deep, 3/4" centers, 5 dowel holes |
 | Divider A | 7 | 13 5/8" (tabs) / 12 7/8" (body) × 4" × 3/8" | tabs 2 1/2" tall |
 | Divider B | 7 | 10 5/8" (tabs) / 9 7/8" (body) × 3" × 3/8" | tabs 1 1/2" tall |
-| Test piece | 2 | 8 1/2" × 3" × 3/8" | 11 slots in each long edge, 0.625" deep, 48 dowel holes (not part of the system) |
+| Test piece | 4 | 8 1/2" × 1 7/16" × 3/8" | 11 slots 1/2" deep, 11 dowel holes and engraved offset labels (not part of the system) |
 
 All **outside (convex) corners are rounded to a 1/8" radius**; inside corners (slot bottoms, tab steps)
 are left sharp because the laser cuts them cleanly.
 
-### Test pieces (2, not part of the system)
+### Test pieces (4, not part of the system)
 
-Two identical strips for finding the slot width that suits the actual plywood and laser, cut from the same
-sheet. They sit in the middle of the two rows of rail inner plies, where the inner plies are pushed against the left and
-right edges of the sheet (`F ITI` in the row list below), so they cost no extra sheet.
+Four identical strips for finding the slot width and dowel hole size that suit the actual plywood, dowels and
+laser, cut from the same sheet. Two sit in the middle of each of the two rows of rail inner plies, where the inner plies
+are pushed against the left and right edges of the sheet (`F ITI` in the row list below), so they cost no extra sheet.
+The two in a row are stacked with their flat edges facing, one turned upside down, so each one's slots face a plain row.
 
-- 8 1/2" × 3" × 3/8", with **11 slots in each long edge** (22 per piece), so the fingers are on both sides.
-- Slots are **0.625" deep** (much shallower than the real 1 1/2"), on **3/4" centers**, open to the edge.
-- Slot widths run from **−0.5 mm to +0.5 mm around the plywood thickness in 0.1 mm steps**, narrowest at the left and
-  widest at the right on *both* edges: 9.025, 9.125, ... 9.525 (the nominal 3/8", sixth slot), ... 10.025 mm.
-  `TEST_NOMINAL` at the top of `nest.py` is what they are relative to; set it to the measured thickness
-  (a 9 mm sheet is 0.354") before cutting.
-- **48 dowel holes** (1/4", 16 × 3 on a 1/2" grid) in the solid spine between the slot floors, to try the dowel fit.
-- Push a scrap of the plywood into each slot and pick the one that is snug but goes in by hand, then put that width
-  in [CLEARANCE.md](CLEARANCE.md) (A1/A2, C1, E1).
+- 8 1/2" × 1 7/16" × 3/8" (two of them and the 1/8" gap between fill the 3" row).
+- **11 slots** in one long edge, **1/2" deep** (much shallower than the real 1 1/2") on **3/4" centers**.
+- Each slot has a **dowel hole directly under it**, and both share one **offset from nominal**: **−0.5 mm to +0.5 mm in
+  0.1 mm steps**, narrowest and smallest at the left, widest and largest at the right. The slot is 3/8" + the offset
+  (9.025 ... 9.525 ... 10.025 mm) and the hole is 1/4" + the offset (5.85 ... 6.35 ... 6.85 mm).
+- The **offset is engraved** between the slot and its hole ("-0.5" ... "0.0" ... "+0.5"), in single-line strokes
+  (a seven-segment style font drawn as paths, so there is nothing to convert). It reads upright with the slots up.
+- `TEST_NOMINAL` at the top of `nest.py` is the thickness the slots are relative to; set it to the measured value
+  (a 9 mm sheet is 0.354") before cutting. The hole offsets are relative to the 1/4" dowel.
+- Push a scrap of the plywood into each slot and a dowel into each hole, pick the ones that are snug but go in by hand,
+  and put those sizes in [CLEARANCE.md](CLEARANCE.md) (A1/A2, C1, D1, E1). The labels say which offset to use.
 
 ## Decisions, in the order they were made
 
@@ -196,15 +199,17 @@ or bracing is needed.
 
 ### Cut order
 
-The cut file has three groups, each a different colour, so the laser software shows them as three layers
+The cut file has four groups, each a different colour, so the laser software shows them as four layers
 that can be ordered:
 
-1. **Red: the 136 dowel holes** (40 in the rails, 96 in the test pieces). Cut first, while the sheet is intact, so they are accurate relative to
+1. **Magenta: the engraved offset labels** on the test pieces (vector engrave, light power). Engraved first, while the
+   sheet is intact.
+2. **Red: the 84 dowel holes** (40 in the rails, 44 in the test pieces). Cut first, while the sheet is intact, so they are accurate relative to
    the outlines.
-2. **Blue: the fingered parts** (2 supports, 4 rail inner plies, 2 test pieces). The thin fingers and the slivers of
+3. **Blue: the fingered parts** (2 supports, 4 rail inner plies, 4 test pieces). The thin fingers and the slivers of
    waste between them are cut while the plain rows on both sides are still uncut, solid stock, and the
    fingers face one of those rows.
-3. **Green: the plain parts** (4 rail outer plies, 14 dividers), simple outlines last.
+4. **Green: the plain parts** (4 rail outer plies, 14 dividers), simple outlines last.
 
 Do not move or unload the sheet between passes; after pass 2 the fingered parts are loose in the sheet.
 
