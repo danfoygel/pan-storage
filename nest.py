@@ -158,7 +158,8 @@ def label_strokes(text, cx, v0, h):
 
 def test_part():
     """Strip TEST_H wide with a row of slots in its top edge, narrowest to widest from left to right, and under each slot
-    an engraved offset label and a dowel hole whose diameter has the same offset as the slot width."""
+    an engraved offset label and a dowel hole whose diameter has the same offset as the slot width, plus an
+    unlabelled hole between each pair of those at the mean offset."""
     n = len(TEST_STEPS_MM)
     slots, holes, labels = [], [], []
     spine = TEST_H - TEST_DEPTH                                  # solid depth under the slot floors
@@ -168,6 +169,8 @@ def test_part():
         w = TEST_NOMINAL + mm / 25.4
         slots.append((c - w / 2, c + w / 2))
         holes.append((c, margin + d.DOWEL_D / 2, d.DOWEL_D + mm / 25.4))
+        if k:                                                    # an unlabelled hole between this slot's hole and the last one, at the mean offset
+            holes.append((c - TEST_PITCH / 2, margin + d.DOWEL_D / 2, d.DOWEL_D + (mm + TEST_STEPS_MM[k - 1]) / 2 / 25.4))
         labels += label_strokes("0.0" if mm == 0 else f"{mm:+.1f}", c, margin + d.DOWEL_D + LABEL_GAP, LABEL_H)
     pts, rnd = d.notched(0, TEST_L, TEST_H, slots, TEST_DEPTH)
     p = part("T", "TEST", pts, rnd, holes, TEST_L, TEST_H, "#fbbf24")

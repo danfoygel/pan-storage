@@ -94,7 +94,7 @@ Each rail is two 3/8" plies glued into one 3/4" rail.
 | Rail inner ply | 4 | 19 1/4" × 3" × 3/8" | 24 slots 3/8" × 1 1/2" deep, 3/4" centers, 5 dowel holes |
 | Divider A | 7 | 13 5/8" (tabs) / 12 7/8" (body) × 4" × 3/8" | tabs 2 1/2" tall |
 | Divider B | 7 | 10 5/8" (tabs) / 9 7/8" (body) × 3" × 3/8" | tabs 1 1/2" tall |
-| Test piece | 4 | 8 1/2" × 1 7/16" × 3/8" | 11 slots 1/2" deep, 11 dowel holes and engraved offset labels (not part of the system) |
+| Test piece | 4 | 8 1/2" × 1 7/16" × 3/8" | 11 slots 1/2" deep, 21 dowel holes and engraved offset labels (not part of the system) |
 
 All **outside (convex) corners are rounded to a 1/8" radius**; inside corners (slot bottoms, tab steps)
 are left sharp because the laser cuts them cleanly.
@@ -111,6 +111,8 @@ The two in a row are stacked with their flat edges facing, one turned upside dow
 - Each slot has a **dowel hole directly under it**, and both share one **offset from nominal**: **−0.5 mm to +0.5 mm in
   0.1 mm steps**, narrowest and smallest at the left, widest and largest at the right. The slot is 3/8" + the offset
   (9.025 ... 9.525 ... 10.025 mm) and the hole is 1/4" + the offset (5.85 ... 6.35 ... 6.85 mm).
+- Between each pair of those holes is an **unlabelled in-between hole** at the mean offset (−0.45, −0.35 ... +0.45 mm,
+  hole 5.90 ... 6.80 mm), so each half has 21 holes. The walls between neighbouring holes are 0.106" to 0.144".
 - The **offset is engraved** between the slot and its hole ("-0.5" ... "0.0" ... "+0.5"), in single-line strokes
   (a seven-segment style font drawn as paths, so there is nothing to convert). It reads upright with the slots up.
 - `TEST_NOMINAL` at the top of `nest.py` is the thickness the slots are relative to; set it to the measured value
@@ -204,7 +206,7 @@ that can be ordered:
 
 1. **Magenta: the engraved offset labels** on the test pieces (vector engrave, light power). Engraved first, while the
    sheet is intact.
-2. **Red: the 84 dowel holes** (40 in the rails, 44 in the test pieces). Cut first, while the sheet is intact, so they are accurate relative to
+2. **Red: the 124 dowel holes** (40 in the rails, 84 in the test pieces). Cut first, while the sheet is intact, so they are accurate relative to
    the outlines.
 3. **Blue: the fingered parts** (2 supports, 4 rail inner plies, 4 test pieces). The thin fingers and the slivers of
    waste between them are cut while the plain rows on both sides are still uncut, solid stock, and the
