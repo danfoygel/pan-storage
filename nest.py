@@ -64,6 +64,7 @@ FINE_DEPTH = d.TAB              # slot / finger depth: the same 1 1/2" as the ra
 FINE_STEPS_MM = [-0.06, -0.03, 0.0, 0.03, 0.06]   # offset from nominal, mm: five slots, finer steps
 LABEL_H = 0.18                  # height of the engraved offset labels
 LABEL_GAP = 0.09                # between a dowel hole and its label
+HALF_WEB = 0.125                # the unlabelled in-between holes are raised until their edge is this far from the slot corners
 LENGTH["T"], LENGTH["U"] = TEST_L, FINE_L
 
 
@@ -132,8 +133,8 @@ def make_parts():
         L = gr - gl + 2 * T
         dpts, drnd = d.divider_profile(L, d.DIV_H[gi])
         out[k] = part(k, f"DIVIDER {k}  {d.frac(gr - gl)} gap", dpts, drnd, [], L, d.DIV_H[gi], col)
-    out["T"] = test_part("T", "TEST", TEST_L, TEST_H, TEST_DEPTH, TEST_STEPS_MM, 1, True)
-    out["U"] = test_part("U", "TEST FINE", FINE_L, FINE_H, FINE_DEPTH, FINE_STEPS_MM, 2, False)
+    out["T"] = test_part("T", "TEST", TEST_L, TEST_H, TEST_DEPTH, TEST_STEPS_MM, lambda mm: f"{round(mm * 10):+d}" if mm else "0", True)
+    out["U"] = test_part("U", "TEST FINE", FINE_L, FINE_H, FINE_DEPTH, FINE_STEPS_MM, lambda mm: f"{mm:+.2f}" if mm else "0.00", False)
     return out
 
 
@@ -162,25 +163,32 @@ def label_strokes(text, cx, v0, h):
     return out
 
 
-def test_part(kind, name, length, height, depth, steps_mm, decimals, with_holes):
+def test_part(kind, name, length, height, depth, steps_mm, label_fmt, with_holes):
     """Strip `height` wide with a row of slots in its top edge, narrowest to widest from left to right, and under each slot
     its engraved offset from nominal. With holes: a dowel hole under each slot whose diameter has the same offset as the
-    slot width, plus an unlabelled hole between each pair of those at the mean offset."""
+    slot width, plus an unlabelled hole between each pair of those at the mean offset. The labels are short enough to
+    leave room between them, so those in-between holes are raised towards the fingers, away from their neighbours."""
     n = len(steps_mm)
     slots, holes, labels = [], [], []
     spine = height - depth                                       # solid depth under the slot floors
     block = LABEL_H + (d.DOWEL_D + LABEL_GAP if with_holes else 0)
     margin = (spine - block) / 2                                 # the hole and the label are centred in it
-    for k, mm in enumerate(steps_mm):
-        c = length / 2 + (k - (n - 1) / 2) * TEST_PITCH
+    centres = [length / 2 + (k - (n - 1) / 2) * TEST_PITCH for k in range(n)]
+    for c, mm in zip(centres, steps_mm):
         w = TEST_NOMINAL + mm / 25.4
         slots.append((c - w / 2, c + w / 2))
+    v_mid = math.inf                                             # height of the in-between holes: as high as the slot corners allow
+    for k in range(1, n if with_holes else 0):
+        x, r = (centres[k] + centres[k - 1]) / 2, (d.DOWEL_D + (steps_mm[k] + steps_mm[k - 1]) / 2 / 25.4) / 2
+        for cx in (slots[k - 1][1], slots[k][0]):
+            if r + HALF_WEB > abs(cx - x):
+                v_mid = min(v_mid, height - depth - math.sqrt((r + HALF_WEB) ** 2 - (cx - x) ** 2))
+    for k, (c, mm) in enumerate(zip(centres, steps_mm)):
         if with_holes:
             holes.append((c, margin + d.DOWEL_D / 2, d.DOWEL_D + mm / 25.4))
             if k:                                                # an unlabelled hole between this slot's hole and the last one, at the mean offset
-                holes.append((c - TEST_PITCH / 2, margin + d.DOWEL_D / 2, d.DOWEL_D + (mm + steps_mm[k - 1]) / 2 / 25.4))
-        text = f"{0:.{decimals}f}" if mm == 0 else f"{mm:+.{decimals}f}"
-        labels += label_strokes(text, c, margin + (d.DOWEL_D + LABEL_GAP if with_holes else 0), LABEL_H)
+                holes.append((c - TEST_PITCH / 2, v_mid, d.DOWEL_D + (mm + steps_mm[k - 1]) / 2 / 25.4))
+        labels += label_strokes(label_fmt(mm), c, margin + (d.DOWEL_D + LABEL_GAP if with_holes else 0), LABEL_H)
     pts, rnd = d.notched(0, length, height, slots, depth)
     p = part(kind, name, pts, rnd, holes, length, height, "#fbbf24" if with_holes else "#fde68a")
     p["engrave"] = labels
@@ -438,6 +446,11 @@ else:
     head.append(f'<text x="0" y="5.4" font-size="0.8" font-weight="bold" fill="#15803d">Layout check passed: no overlaps; smallest gap between parts {MIN_GAP:.3f}&quot; (min {G:g}&quot;), smallest edge padding {MIN_EDGE:.3f}&quot; (min {EDGE:g}&quot;).</text>')
 sheet = [f'<g transform="translate(0 {VIEW_OY})">', f'<rect x="0" y="0" width="{SHEET_W:g}" height="{SHEET_H:g}" fill="#fbf7ee" stroke="#6b7280" stroke-width="0.08"/>'] + VIEW + ["</g>"]
 open(f"layout_{TAG}.svg", "w").write("\n".join(head + sheet + ["</svg>"]))
+_h = PARTS["T"]["holes"]
+_webs = sorted((math.hypot(a[0] - b[0], a[1] - b[1]) - (a[2] + b[2]) / 2, a[2] + b[2], i, j) for i, a in enumerate(_h) for j, b in enumerate(_h) if i < j)
+_big = sorted(range(len(_h)), key=lambda i: -_h[i][2])[:2]
+_bw = math.hypot(_h[_big[0]][0] - _h[_big[1]][0], _h[_big[0]][1] - _h[_big[1]][1]) - (_h[_big[0]][2] + _h[_big[1]][2]) / 2
+print(f"test pieces: wall between the two largest dowel holes {_bw:.4f}\" ({_bw * 25.4:.2f} mm); thinnest wall between any two holes {_webs[0][0]:.4f}\" ({_webs[0][0] * 25.4:.2f} mm); in-between holes at {_h[2][1]:.4f}\" above the flat edge, main holes at {_h[0][1]:.4f}\"")
 print("totals:", {k: TALLY[k] for k in "SIOABTU"})
 print(f"x = {H_F:g} (plain {H_P:g}, fingers {d.TAB_T:g}); {ORIENT} orientation: {len(ROWS)} rows need {STACK_USED:.3f}\" of the {STACK:g}\" side at the minimum gap; row gap {ROW_GAP:.3f}\", padding {STACK_PAD:.3f}\" at the ends of the stack, {EDGE:g}\" at the ends of the rows")
 print("rows, top to bottom: " + " | ".join(("F " if f else "P ") + ("ITI" if c.get("T") else "".join(k * c[k] for k in "SIOAB" if k in c) + ("+U" if c.get("U") else "")) for c, _, f in ROWS))
