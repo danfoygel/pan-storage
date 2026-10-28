@@ -18,7 +18,7 @@ new limit for `x`).
 | # | Item | Why it matters | Today | Decision |
 |---|---|---|---|---|
 | A1 | **Actual plywood thickness.** "3/8" baltic birch is often 9 mm (0.354") and varies by sheet. | Every slot, tab and stack height is built from this one number. | exactly 0.375" | measure, then set |
-| A2 | **Laser kerf and compensation.** Show nominal size and let the laser software offset, or bake the offset into the drawing. | Slots come out larger and tabs smaller by about one kerf, and the correction goes the other way for each. | no compensation | measure (cut a test strip of slot widths) |
+| A2 | **Laser kerf and compensation.** Show nominal size and let the laser software offset, or bake the offset into the drawing. | Slots come out larger and tabs smaller by about one kerf, and the correction goes the other way for each. | no compensation | measure (the two test pieces on the sheet have slots from −0.5 to +0.5 mm around nominal) |
 
 ## B. The assembly in the drawer
 
