@@ -57,9 +57,10 @@ TEST_DEPTH = 0.5                # finger / slot depth: much shallower than the r
 TEST_PITCH = 0.75               # slot pitch, centre to centre (the same as the rail slots)
 TEST_STEPS_MM = [k / 10 for k in range(-5, 6)]    # offset from nominal, mm: -0.5 ... +0.5 in 0.1 mm steps; slot width and hole diameter
 TEST_NOMINAL = T                # the plywood thickness the slots are relative to (change to the measured value)
-FINE_COUNT = 4                  # fine test pieces: two in each of the two rows with a support
+FINE_COUNT = 2                  # fine test pieces: one in each of the two rows with a support
 FINE_L = 4.0                    # length of the strip; the free end of the support rows is 4.5"
-FINE_DEPTH = 0.9375             # slot / finger depth: longer than the 1/2" of the long test pieces, no dowel holes to leave room for
+FINE_H = H_F                    # as tall as the rail inner plies, with fingers (slots) on the top edge only
+FINE_DEPTH = d.TAB              # slot / finger depth: the same 1 1/2" as the rail inner plies
 FINE_STEPS_MM = [-0.06, -0.03, 0.0, 0.03, 0.06]   # offset from nominal, mm: five slots, finer steps
 LABEL_H = 0.18                  # height of the engraved offset labels
 LABEL_GAP = 0.09                # between a dowel hole and its label
@@ -131,8 +132,8 @@ def make_parts():
         L = gr - gl + 2 * T
         dpts, drnd = d.divider_profile(L, d.DIV_H[gi])
         out[k] = part(k, f"DIVIDER {k}  {d.frac(gr - gl)} gap", dpts, drnd, [], L, d.DIV_H[gi], col)
-    out["T"] = test_part("T", "TEST", TEST_L, TEST_DEPTH, TEST_STEPS_MM, 1, True)
-    out["U"] = test_part("U", "TEST FINE", FINE_L, FINE_DEPTH, FINE_STEPS_MM, 2, False)
+    out["T"] = test_part("T", "TEST", TEST_L, TEST_H, TEST_DEPTH, TEST_STEPS_MM, 1, True)
+    out["U"] = test_part("U", "TEST FINE", FINE_L, FINE_H, FINE_DEPTH, FINE_STEPS_MM, 2, False)
     return out
 
 
@@ -161,13 +162,13 @@ def label_strokes(text, cx, v0, h):
     return out
 
 
-def test_part(kind, name, length, depth, steps_mm, decimals, with_holes):
-    """Strip TEST_H wide with a row of slots in its top edge, narrowest to widest from left to right, and under each slot
+def test_part(kind, name, length, height, depth, steps_mm, decimals, with_holes):
+    """Strip `height` wide with a row of slots in its top edge, narrowest to widest from left to right, and under each slot
     its engraved offset from nominal. With holes: a dowel hole under each slot whose diameter has the same offset as the
     slot width, plus an unlabelled hole between each pair of those at the mean offset."""
     n = len(steps_mm)
     slots, holes, labels = [], [], []
-    spine = TEST_H - depth                                       # solid depth under the slot floors
+    spine = height - depth                                       # solid depth under the slot floors
     block = LABEL_H + (d.DOWEL_D + LABEL_GAP if with_holes else 0)
     margin = (spine - block) / 2                                 # the hole and the label are centred in it
     for k, mm in enumerate(steps_mm):
@@ -180,8 +181,8 @@ def test_part(kind, name, length, depth, steps_mm, decimals, with_holes):
                 holes.append((c - TEST_PITCH / 2, margin + d.DOWEL_D / 2, d.DOWEL_D + (mm + steps_mm[k - 1]) / 2 / 25.4))
         text = f"{0:.{decimals}f}" if mm == 0 else f"{mm:+.{decimals}f}"
         labels += label_strokes(text, c, margin + (d.DOWEL_D + LABEL_GAP if with_holes else 0), LABEL_H)
-    pts, rnd = d.notched(0, length, TEST_H, slots, depth)
-    p = part(kind, name, pts, rnd, holes, length, TEST_H, "#fbbf24" if with_holes else "#fde68a")
+    pts, rnd = d.notched(0, length, height, slots, depth)
+    p = part(kind, name, pts, rnd, holes, length, height, "#fbbf24" if with_holes else "#fde68a")
     p["engrave"] = labels
     return p
 
@@ -274,10 +275,10 @@ def build():
     for i in inner_rows:
         rows[i] = ({**rows[i][0], "T": 2}, rows[i][1], True)
     support_rows = [i for i, (c, _, _) in enumerate(rows) if c["S"]]
-    if len(support_rows) != FINE_COUNT // 2:
-        sys.exit(f"expected {FINE_COUNT // 2} rows with a support for the fine test pieces, found {len(support_rows)}")
+    if len(support_rows) != FINE_COUNT:
+        sys.exit(f"expected {FINE_COUNT} rows with a support for the fine test pieces, found {len(support_rows)}")
     for i in support_rows:
-        rows[i] = ({**rows[i][0], "U": 2}, rows[i][1], True)
+        rows[i] = ({**rows[i][0], "U": 1}, rows[i][1], True)
     rows, align = row_order(rows)
     spare = STACK - sum(h for _, h, _ in rows)
     gap = ROW_GAP_SET
@@ -307,7 +308,7 @@ def build():
             x = space
         for k in keys:
             put(k, x, y, False)                  # fingers face the row above, which is plain
-            if k in "TU":                        # the second test piece below the first, turned round so its fingers face the plain row below
+            if k == "T":                         # the second test piece below the first, turned round so its fingers face the plain row below
                 if h < 2 * TEST_H + G - 1e-9:
                     sys.exit(f"two test pieces do not fit in a row {h:g}\" tall")
                 put(k, x, y + h - TEST_H, True)
