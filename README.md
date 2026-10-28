@@ -18,7 +18,7 @@ drawings and the nested cut files regenerate together.
 | [`perspective.svg`](perspective.svg) | The birch plywood render (above) |
 | [`drawer.svg`](drawer.svg) | The design drawing (below) |
 | [`layout_long_x3.svg`](layout_long_x3.svg) | Colour preview of the nested sheet |
-| [`cut_long_x3_sheet1.svg`](cut_long_x3_sheet1.svg) | 1:1 cut file, 48" × 34", hairline outlines in four colour groups (engraved labels, holes, fingered parts, plain parts), no fill |
+| [`cut_long_x3_sheet1.svg`](cut_long_x3_sheet1.svg) | 1:1 cut file, 48" × 34", hairline outlines in five colour groups (laser test rectangles, engraved labels, holes, fingered parts, plain parts), no fill |
 | [`CLEARANCE.md`](CLEARANCE.md) | Every fit that needs an explicit clearance, and what the model currently assumes |
 
 ## The design drawing
@@ -30,7 +30,7 @@ drawings and the nested cut files regenerate together.
 ![Nested layout on one 48 x 34 sheet](layout_long_x3.svg)
 
 One 48" × 34" sheet holds the whole system: 2 supports, 4 rail outer plies, 4 rail inner plies,
-**7 divider A and 7 divider B**, plus **6 test pieces** (see below). The layout passes the built-in overlap check (smallest gap between parts
+**7 divider A and 7 divider B**, plus **6 test pieces** and **10 laser test rectangles** (see below). The layout passes the built-in overlap check (smallest gap between parts
 0.125", the minimum; smallest edge padding 0.250").
 
 ## Inputs
@@ -136,6 +136,14 @@ The two in a row are stacked with their flat edges facing, one turned upside dow
 Push a scrap of the plywood into each slot and a dowel into each hole, pick the ones that are snug but go in by hand,
   and put those sizes in [CLEARANCE.md](CLEARANCE.md) (A1/A2, C1, D1, E1). The labels say which offset to use.
 
+### Laser test rectangles (10, not part of the system)
+
+The bottom row, which holds four divider B, has them pushed out to the two sides (a pair against each edge of the
+sheet), which frees 4 1/2" in the middle. That holds **10 plain rectangles, 3/4" × 1 1/2" with 1/8" rounded corners**,
+in a 5 × 2 grid. The size doesn't matter: cut them **first** to tune the laser's power and speed on the actual plywood
+before the real parts. They are their own (orange) layer in the cut file for that reason, so they can be given
+different settings, run on their own, or left out.
+
 ## Decisions, in the order they were made
 
 1. **Rails: tabs on the outer ply only.** Originally both plies had tabs. Making the inner ply stop between
@@ -198,7 +206,7 @@ or bracing is needed.
   | 3 3/16" | 4 3/16" | 1 19/32" | 34.188" (does not fit) |
 
   At **x = 3"** the 9 rows are
-  `P OAB | F BS+U | P OAA | F ITI | P OAA | F ITI | P OAA | F SB+U | P BBBB` (U = a fine test piece)
+  `P OAB | F BS+U | P OAA | F ITI | P OAA | F ITI | P OAA | F SB+U | P BBBB` (U = a fine test piece; the last row has two divider B at each side and the laser test rectangles between them)
   (P / F = plain / fingered row; O, A, B = rail outer ply, divider A, divider B; S, I = support, rail inner ply).
   The fingered rows run in a fixed order: a support row with the **support pushed against the right edge**, the two
   rail inner ply rows, then the other support row with the **support pushed against the left edge**.
@@ -217,17 +225,19 @@ or bracing is needed.
 
 ### Cut order
 
-The cut file has four groups, each a different colour, so the laser software shows them as four layers
+The cut file has five groups, each a different colour, so the laser software shows them as five layers
 that can be ordered:
 
-1. **Magenta: the engraved offset labels** on all 6 test pieces (vector engrave, light power). Engraved first, while the
-   sheet is intact.
-2. **Red: the 124 dowel holes** (40 in the rails, 84 in the test pieces). Cut first, while the sheet is intact, so they are accurate relative to
-   the outlines.
-3. **Blue: the fingered parts** (2 supports, 4 rail inner plies, 6 test pieces). The thin fingers and the slivers of
+1. **Orange: the 10 laser test rectangles.** Run first to check and set the power and speed (see above), and
+   skip them later if the settings are already known.
+2. **Magenta: the engraved offset labels** on all 6 test pieces (vector engrave, light power). Engraved before
+   anything is cut through, while the sheet is intact.
+3. **Red: the 124 dowel holes** (40 in the rails, 84 in the test pieces). Cut while the sheet is intact, so they are
+   accurate relative to the outlines.
+4. **Blue: the fingered parts** (2 supports, 4 rail inner plies, 6 test pieces). The thin fingers and the slivers of
    waste between them are cut while the plain rows on both sides are still uncut, solid stock, and the
    fingers face one of those rows.
-4. **Green: the plain parts** (4 rail outer plies, 14 dividers), simple outlines last.
+5. **Green: the plain parts** (4 rail outer plies, 14 dividers), simple outlines last.
 
 Do not move or unload the sheet between passes; after pass 2 the fingered parts are loose in the sheet.
 
