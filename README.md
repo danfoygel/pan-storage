@@ -38,7 +38,7 @@ One 48" × 34" sheet holds the whole system: 2 supports, 4 rail outer plies, 4 r
 | Input | Value |
 |---|---|
 | Drawer interior | 32 3/8" wide (side to side) × 20" deep (front to back) × 9 1/2" tall |
-| Material | 3/8" baltic birch plywood (modelled as exactly 0.375"), cut on a laser |
+| Material | 3/8" baltic birch plywood, measured 9.4 mm (0.370"), cut on a laser; the laser software applies the kerf offset |
 | Sheet size | 48" × 34" |
 | Rail pairs | Two pairs; inner faces toward each other; **13"** and **10"** wide gaps requested |
 | Dividers | Fit into slots in the rails; at least 5 of each size, more if they fit (final: 7 each) |
@@ -54,9 +54,9 @@ Everything is set by one number, `x`, the height of the **slotted parts** (suppo
 and the **fingers and slots** are `x / 2` deep. The sheet allows `x` up to 3 1/8" (see Nesting); the design uses
 **x = 3"**, which leaves room for generous gaps: the slotted parts and divider B are 3" tall, the rail outer plies
 and divider A 4", and the fingers and slots 1 1/2". Everything stands on the drawer floor. The slots are open at
-the top of the slotted parts, between 1 1/2" and 3" up, so the tabs start at the slot floor, 1 1/2" up, and run to
-the top of the part: 2 1/2" tall on the rail outer plies and divider A, 1 1/2" on divider B (which ends flush with
-the inner plies). The parts are lowered in from above, and the rail outer plies and divider A rise 1" above the
+the top of the slotted parts, between 1 1/2" and 3" up, and the tabs start 1/16" above the slot floor, at 1 9/16", so
+they never bottom out, and run to the top of the part: 2 7/16" tall on the rail outer plies and divider A, 1 7/16" on
+divider B (which ends flush with the inner plies). The fits are listed in [CLEARANCE.md](CLEARANCE.md). The parts are lowered in from above, and the rail outer plies and divider A rise 1" above the
 supports and inner plies.
 
 ### Supports (2)
@@ -66,34 +66,35 @@ supports and inner plies.
 
 ### Rails (4, in two pairs)
 Each rail is two 3/8" plies glued into one 3/4" rail.
-- **Outer ply** – structural, no slots, 4" tall. Full 20" long at the tabs: the end tabs (3/8" long, 2 1/2" tall, from
-  1 1/2" up to the top) pass through the support slots. The body between the supports is 19 1/4".
-- **Inner ply** – 3" tall, 19 1/4" long (fits between the supports, no tabs). **24 slots**, 3/8" wide, on **3/4"
+- **Outer ply** – structural, no slots, 4" tall. 19.938" long at the tabs: the end tabs (0.354" long, 2 7/16" tall, from
+  1 9/16" up to the top) pass through the support slots and stop 1/32" short of the drawer wall. The body between
+  the supports is 19.229" (1/32" shorter than the space).
+- **Inner ply** – 3" tall, 19.229" long (fits between the supports, no tabs). **24 slots**, `T` + `SLIP` wide, on **3/4"
   centers**, centred along the length, for the dividers. The 3/8" teeth between slots are backed by the
   outer ply, which carries the divider loads through the glue joint.
 - **5 alignment dowel holes**, 1/4" diameter, through both plies for glue-up registration, at
   1", 5 1/2", 10", 14 1/2" and 19" from the front, all 3/4" up from the bottom. That is mid-spine on the
   inner ply (the 1 1/2" of solid wood below the slot floors, `x / 4` up). The pattern is symmetric so a ply can be flipped.
 - Rail position is set by the support slots, so the gap between a pair is a whole number of inches minus
-  1 1/8": **12 7/8"** and **9 7/8"** (the closest to the requested 13" and 10"). Spare width is 2" at
+  three plywood thicknesses: **12.890"** and **9.890"** (the closest to the requested 13" and 10"). Spare width is 2" at
   the left, 2 5/8" in the middle and 2" at the right.
 
 ### Dividers
-- **Divider A** for the 12 7/8" gap: 12 7/8" body, 13 5/8" over the tabs.
-- **Divider B** for the 9 7/8" gap: 9 7/8" body, 10 5/8" over the tabs.
-- 3/8" thick; divider A is 4" tall with tabs 3/8" long and 2 1/2" tall (from 1 1/2" up to the top); divider B is
-  3" tall with tabs 1 1/2" tall. The tabs drop into the rail inner-ply slots. Removable; position them anywhere on
+- **Divider A** for the 12.890" gap: 12.859" body, 13.567" over the tabs.
+- **Divider B** for the 9.890" gap: 9.859" body, 10.567" over the tabs.
+- The bodies are 1/32" shorter than the gap, and the tabs stop 1/32" short of the outer ply. Divider A is 4" tall
+  with tabs 2 7/16" tall (from 1 9/16" up to the top); divider B is 3" tall with tabs 1 7/16" tall. The tabs drop into the rail inner-ply slots. Removable; position them anywhere on
   the 3/4" slot grid.
 
 ### Part sizes
 
 | Part | Qty | Size (length × height × thickness) | Notes |
 |---|---|---|---|
-| Support | 2 | 32 3/8" × 3" × 3/8" | 31 slots, 3/8" × 1 1/2" deep, 1" centers |
-| Rail outer ply | 4 | 20" × 4" × 3/8" | tabs 2 1/2" tall × 3/8" long, 19 1/4" body, 5 dowel holes |
-| Rail inner ply | 4 | 19 1/4" × 3" × 3/8" | 24 slots 3/8" × 1 1/2" deep, 3/4" centers, 5 dowel holes |
-| Divider A | 7 | 13 5/8" (tabs) / 12 7/8" (body) × 4" × 3/8" | tabs 2 1/2" tall |
-| Divider B | 7 | 10 5/8" (tabs) / 9 7/8" (body) × 3" × 3/8" | tabs 1 1/2" tall |
+| Support | 2 | 32 3/8" × 3" × 0.370" | 31 slots, `T` + `SLIP` × 1 1/2" deep, 1" centers |
+| Rail outer ply | 4 | 19.938" × 4" × 0.370" | tabs 2 7/16" tall × 0.354" long, 19.229" body, 5 dowel holes |
+| Rail inner ply | 4 | 19.229" × 3" × 0.370" | 24 slots `T` + `SLIP` × 1 1/2" deep, 3/4" centers, 5 dowel holes |
+| Divider A | 7 | 13.567" (tabs) / 12.859" (body) × 4" × 0.370" | tabs 2 7/16" tall |
+| Divider B | 7 | 10.567" (tabs) / 9.859" (body) × 3" × 0.370" | tabs 1 7/16" tall |
 | Test piece | 4 | 8 1/2" × 1 7/16" × 3/8" | 11 slots 1/2" deep, 21 dowel holes and engraved offset labels (not part of the system) |
 | Fine test piece | 2 | 4" × 3" × 3/8" | 5 slots 1 1/2" deep (−0.06 to +0.06 mm), engraved offsets, no holes (not part of the system) |
 
@@ -110,8 +111,8 @@ The two in a row are stacked with their flat edges facing, one turned upside dow
 - 8 1/2" × 1 7/16" × 3/8" (two of them and the 1/8" gap between fill the 3" row).
 - **11 slots** in one long edge, **1/2" deep** (much shallower than the real 1 1/2") on **3/4" centers**.
 - Each slot has a **dowel hole directly under it**, and both share one **offset from nominal**: **−0.5 mm to +0.5 mm in
-  0.1 mm steps**, narrowest and smallest at the left, widest and largest at the right. The slot is 3/8" + the offset
-  (9.025 ... 9.525 ... 10.025 mm) and the hole is 1/4" + the offset (5.85 ... 6.35 ... 6.85 mm).
+  0.1 mm steps**, narrowest and smallest at the left, widest and largest at the right. The slot is the measured 9.4 mm + the offset
+  (8.9 ... 9.4 ... 9.9 mm) and the hole is 1/4" + the offset (5.85 ... 6.35 ... 6.85 mm).
 - Between each pair of those holes is an **unlabelled in-between hole** at the mean offset (−0.45, −0.35 ... +0.45 mm,
   hole 5.90 ... 6.80 mm), so each half has 21 holes. The in-between holes are raised towards the fingers, to
   0.638" from the flat edge (the labelled holes are at 0.334"), the height where the wall to the slot corners and
@@ -121,8 +122,9 @@ The two in a row are stacked with their flat edges facing, one turned upside dow
 - The **offset is engraved** between each slot and its hole, in **tenths of a millimetre**: "-5" ... "-1", "0", "+1" ... "+5"
   (so "+3" is +0.3 mm). The fine pieces below are labelled in full ("-0.06"). The lettering is single-line strokes
   (a seven-segment style font drawn as paths, so there is nothing to convert), and reads upright with the slots up.
-- `TEST_NOMINAL` at the top of `nest.py` is the thickness the slots are relative to; set it to the measured value
-  (a 9 mm sheet is 0.354") before cutting. The hole offsets are relative to the 1/4" dowel.
+- `TEST_NOMINAL` at the top of `nest.py` is the thickness the slots are relative to, the measured `T`. The hole
+  offsets are relative to the 1/4" dowel. So the label of the best slot is `SLIP` and that of the best hole is
+  `DOWEL_SLIP`, in tenths of a mm.
 
 **Fine test pieces (2).** The same idea at a finer scale, in the free end of the two rows that hold a support
 (`F SB+U`), one in each row against the sheet edge beside divider B.
@@ -135,7 +137,7 @@ The two in a row are stacked with their flat edges facing, one turned upside dow
   `FINE_STEPS_MM` in `nest.py` around that offset (the −0.06 to +0.06 range is relative to the nominal).
 
 Push a scrap of the plywood into each slot and a dowel into each hole, pick the ones that are snug but go in by hand,
-  and put those sizes in [CLEARANCE.md](CLEARANCE.md) (A1/A2, C1, D1, E1). The labels say which offset to use.
+  and put those offsets in `SLIP` and `DOWEL_SLIP` at the top of `drawer.py` (see [CLEARANCE.md](CLEARANCE.md)).
 
 ### Laser test rectangles (17, not part of the system)
 
@@ -263,7 +265,7 @@ largest `x` that nests (3 1/8").
 
 ## Open items
 
-- **Clearances are all zero** (nominal sizes everywhere). See [CLEARANCE.md](CLEARANCE.md) for every fit
-  that needs a value, pending the measured plywood thickness and the laser's kerf.
+- **`SLIP` and `DOWEL_SLIP` are 0 until the test pieces are cut.** Every other clearance is set; see
+  [CLEARANCE.md](CLEARANCE.md).
 - The 3D view draws the dividers as plain boxes (no rounded corners shown).
 - Compartment layout for the actual pans and lids is the next step.
