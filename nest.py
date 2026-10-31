@@ -44,7 +44,7 @@ T, TAB_R = d.T, d.TAB_R
 H_F, H_P = d.H_FING, d.H_PLAIN
 FINGERED = "SI"
 NEED = {"S": 2, "I": 4, "O": 4, "A": 7, "B": 7}    # parts in the system
-LENGTH = {"S": d.W, "I": d.BODY1 - d.BODY0, "O": d.D, "A": d.GAPS[0][1] - d.GAPS[0][0] + 2 * T, "B": d.GAPS[1][1] - d.GAPS[1][0] + 2 * T}
+LENGTH = {"S": d.W, "I": d.BODY1 - d.BODY0, "O": d.RAIL_L, "A": d.divider_len(d.GAPS[0][1] - d.GAPS[0][0]), "B": d.divider_len(d.GAPS[1][1] - d.GAPS[1][0])}
 
 # Test pieces (not part of the system): strips with a row of slots in one long edge and a row of dowel holes, to find
 # the slot width and hole size that fit the plywood and the dowels. Two of them are stacked, flat edges facing, in the
@@ -56,7 +56,7 @@ TEST_L = 8.5                    # length of the strip; the free middle of the ra
 TEST_DEPTH = 0.5                # finger / slot depth: much shallower than the real 1 1/2" ones
 TEST_PITCH = 0.75               # slot pitch, centre to centre (the same as the rail slots)
 TEST_STEPS_MM = [k / 10 for k in range(-5, 6)]    # offset from nominal, mm: -0.5 ... +0.5 in 0.1 mm steps; slot width and hole diameter
-TEST_NOMINAL = T                # the plywood thickness the slots are relative to (change to the measured value)
+TEST_NOMINAL = T                # the plywood thickness the slots are relative to (the measured value), so the label of the best slot is d.SLIP in mm
 FINE_COUNT = 2                  # fine test pieces: one in each of the two rows with a support
 FINE_L = 4.0                    # length of the strip; the free end of the support rows is 4.5"
 FINE_H = H_F                    # as tall as the rail inner plies, with fingers (slots) on the top edge only
@@ -129,12 +129,13 @@ def make_parts():
     out = {
         "S": part("S", "SUPPORT", sp, sr, [], d.W, H_F, d.SUP),
         "I": part("I", "RAIL INNER", ip, ir, [(y - d.BODY0, d.DOWEL_Z) for y in d.DOWEL_YS], d.BODY1 - d.BODY0, H_F, d.RIN),
-        "O": part("O", "RAIL OUTER", d.RAIL_PROFILE, d.RAIL_RND, [(y, d.DOWEL_Z) for y in d.DOWEL_YS], d.D, H_P, d.ROUT),
+        "O": part("O", "RAIL OUTER", [(u - d.TAB_SHORT, v) for u, v in d.RAIL_PROFILE], d.RAIL_RND,
+                  [(y - d.TAB_SHORT, d.DOWEL_Z) for y in d.DOWEL_YS], d.RAIL_L, H_P, d.ROUT),
     }
     for k, gi, col in (("A", 0, d.DIVC), ("B", 1, "#c084fc")):
         gl, gr = d.GAPS[gi]
-        L = gr - gl + 2 * T
-        dpts, drnd = d.divider_profile(L, d.DIV_H[gi])
+        L = d.divider_len(gr - gl)
+        dpts, drnd = d.divider_profile(gr - gl, d.DIV_H[gi])
         out[k] = part(k, f"DIVIDER {k}  {d.frac(gr - gl)} gap", dpts, drnd, [], L, d.DIV_H[gi], col)
     out["R"] = part("R", "LASER TEST", [(0, 0), (RECT_W, 0), (RECT_W, RECT_H), (0, RECT_H)], {0, 1, 2, 3}, [], RECT_W, RECT_H, "#fdba74")
     out["Q"] = part("Q", "LASER TEST", [(0, 0), (RECT_H, 0), (RECT_H, RECT_W), (0, RECT_W)], {0, 1, 2, 3}, [], RECT_H, RECT_W, "#fdba74")
@@ -251,7 +252,7 @@ def put(key, x0, ytop, inv):
     def tf(u, v):
         return to_sheet(*((x0 + L - u, ytop + v) if inv else (x0 + u, ytop + h - v)))
     pts = [tf(*q) for q in p["pts"]]
-    holes = [(*tf(*q[:2]), q[2] if len(q) > 2 else d.DOWEL_D) for q in p["holes"]]     # (x, y, diameter)
+    holes = [(*tf(*q[:2]), q[2] if len(q) > 2 else d.DOWEL_HOLE) for q in p["holes"]]     # (x, y, diameter)
     strokes = [[tf(*q) for q in line] for line in p["engrave"]]
     dd = path_d(pts, p["rnd"], TAB_R)
     PLACED.append(dict(name=p["name"], pts=d.rounded_profile(pts, p["rnd"], TAB_R, n=6)[0], holes=holes))
@@ -487,7 +488,7 @@ desc = ", ".join(f"{TALLY[k]} x {PARTS[k]['name'].split('  ')[0]}" for k in "SIO
 head = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 -1 {SHEET_W + 2:g} {SHEET_H + VIEW_OY + 2:g}" font-family="Helvetica, Arial, sans-serif">',
         f'<rect x="-1" y="-1" width="{SHEET_W + 2:g}" height="{SHEET_H + VIEW_OY + 2:g}" fill="#ffffff"/>',
         '<text x="0" y="1.2" font-size="1.5" font-weight="bold" fill="#111827">Pan &amp; Lid Drawer Storage - nested layout</text>',
-        f'<text x="0" y="2.3" font-size="0.7" fill="#6b7280">3/8" baltic birch; parts run along the {"34" if ORIENT == "short" else "48"}" side{GRAIN_NOTE}.</text>',
+        f'<text x="0" y="2.3" font-size="0.7" fill="#6b7280">3/8" baltic birch ({T * 25.4:.1f} mm, slip {d.SLIP * 25.4:+.2f} mm, dowel slip {d.DOWEL_SLIP * 25.4:+.2f} mm); parts run along the {"34" if ORIENT == "short" else "48"}" side{GRAIN_NOTE}.</text>',
         f'<text x="0" y="3.0" font-size="0.7" fill="#6b7280">Slotted parts (supports, rail inner plies) and divider B {H_F:g}" tall; rail outer plies and divider A {H_P:g}" tall; fingers and slots {d.TAB_T:g}" deep.</text>',
         f'<text x="0" y="3.7" font-size="0.7" fill="#6b7280">Rows with fingers alternate with plain rows; {ROW_GAP:.3f}" between rows, {STACK_PAD:.3f}" padding at the ends of the stack and at least {EDGE:g}" at the ends of the rows.</text>',
         f'<text x="0" y="4.4" font-size="0.7" fill="#6b7280">Sheet {SHEET_W:g}" x {SHEET_H:g}": {desc}.</text>',
