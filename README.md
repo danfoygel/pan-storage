@@ -18,7 +18,7 @@ drawings and the nested cut files regenerate together.
 | [`perspective.svg`](perspective.svg) | The birch plywood render (above) |
 | [`drawer.svg`](drawer.svg) | The design drawing (below) |
 | [`layout_long_x3.svg`](layout_long_x3.svg) | Colour preview of the nested sheet |
-| [`cut_long_x3_sheet1.svg`](cut_long_x3_sheet1.svg) | 1:1 cut file, 48" × 34", hairline outlines in five colour groups (laser test rectangles, engraved labels, holes, fingered parts, plain parts), no fill |
+| [`cut_long_x3_sheet1.svg`](cut_long_x3_sheet1.svg) | 1:1 cut file, 48" × 34", hairline outlines in five colour groups (laser test pieces, engraved labels, holes, fingered parts, plain parts), no fill |
 | [`CLEARANCE.md`](CLEARANCE.md) | Every fit that needs an explicit clearance, and what the model currently assumes |
 
 ## The design drawing
@@ -30,7 +30,7 @@ drawings and the nested cut files regenerate together.
 ![Nested layout on one 48 x 34 sheet](layout_long_x3.svg)
 
 One 48" × 34" sheet holds the whole system: 2 supports, 4 rail outer plies, 4 rail inner plies,
-**7 divider A and 7 divider B**, plus **6 test pieces** and **17 laser test rectangles** (see below). The layout passes the built-in overlap check (smallest gap between parts
+**6 divider A and 8 divider B**, plus **6 test pieces** and **29 laser test pieces** ("9" shapes) (see below). The layout passes the built-in overlap check (smallest gap between parts
 0.125", the minimum; smallest edge padding 0.250").
 
 ## Inputs
@@ -41,7 +41,7 @@ One 48" × 34" sheet holds the whole system: 2 supports, 4 rail outer plies, 4 r
 | Material | 3/8" baltic birch plywood, measured 9.4 mm (0.370"), cut on a laser; the laser software applies the kerf offset |
 | Sheet size | 48" × 34" |
 | Rail pairs | Two pairs; inner faces toward each other; **13"** and **10"** wide gaps requested |
-| Dividers | Fit into slots in the rails; at least 5 of each size, more if they fit (final: 7 each) |
+| Dividers | Fit into slots in the rails; at least 5 of each size, more if they fit (final: 6 A and 8 B) |
 
 ## How the system works
 
@@ -93,8 +93,8 @@ Each rail is two 3/8" plies glued into one 3/4" rail.
 | Support | 2 | 32 3/8" × 3" × 0.370" | 31 slots, `T` + `SLIP` × 1 1/2" deep, 1" centers |
 | Rail outer ply | 4 | 19.938" × 4" × 0.370" | tabs 2 7/16" tall × 0.354" long, 19.229" body, 5 dowel holes |
 | Rail inner ply | 4 | 19.229" × 3" × 0.370" | 24 slots `T` + `SLIP` × 1 1/2" deep, 3/4" centers, 5 dowel holes |
-| Divider A | 7 | 13.567" (tabs) / 12.859" (body) × 4" × 0.370" | tabs 2 7/16" tall |
-| Divider B | 7 | 10.567" (tabs) / 9.859" (body) × 3" × 0.370" | tabs 1 7/16" tall |
+| Divider A | 6 | 13.567" (tabs) / 12.859" (body) × 4" × 0.370" | tabs 2 7/16" tall |
+| Divider B | 8 | 10.567" (tabs) / 9.859" (body) × 3" × 0.370" | tabs 1 7/16" tall |
 | Test piece | 4 | 8 1/2" × 1 7/16" × 3/8" | 11 slots 1/2" deep, 21 dowel holes and engraved offset labels (not part of the system) |
 | Fine test piece | 2 | 4" × 3" × 3/8" | 5 slots 1 1/2" deep (−0.06 to +0.06 mm), engraved offsets, no holes (not part of the system) |
 
@@ -139,13 +139,29 @@ The two in a row are stacked with their flat edges facing, one turned upside dow
 Push a scrap of the plywood into each slot and a dowel into each hole, pick the ones that are snug but go in by hand,
   and put those offsets in `SLIP` and `DOWEL_SLIP` at the top of `drawer.py` (see [CLEARANCE.md](CLEARANCE.md)).
 
-### Laser test rectangles (17, not part of the system)
+### Laser test pieces (29, not part of the system)
 
-The bottom row, which holds four divider B, has them pushed out to the two sides (a pair against each edge of the
-sheet), which frees 4 1/2" in the middle. That holds **10 plain rectangles, 3/4" × 1 1/2" with 1/8" rounded corners**,
-in a 5 × 2 grid. Another **7 lie down (1 1/2" × 3/4")** in a row in the top right corner, in the 1" under the divider B
-(the top row is 4" tall, divider B only 3"). The size doesn't matter: cut them **first** to tune the laser's power and speed on the actual plywood
-before the real parts. They are their own (orange) layer in the cut file for that reason, so they can be given
+Small pieces shaped like a **"9"**, cut **first** to tune the laser's power and speed on the actual plywood before the
+real parts, and then measured with calipers to check the kerf offset. Every dimension is a round number:
+
+- **3/4" × 1 1/2"** overall, with 1/8" rounded outside corners (measure across the flats).
+- A **1/4" square hole** in the top of the loop (an inside dimension: it comes out too big if the offset is too small).
+- A **1/2" square notch** cut in from the left edge, below the loop (inside, 1/2" tall and 1/2" deep).
+- Every bar around them is **1/4"** wide: the walls of the loop, the bar under it, the bottom bar and the right side.
+
+The inside corners of the hole and the notch are left sharp. In the cut file each piece's square hole comes before its
+outline, so the piece is still held while the hole is cut.
+
+Where they go:
+- **10 standing** in a 5 × 2 grid in the middle of the bottom row, which holds four divider B pushed out to the two
+  sides (a pair against each edge of the sheet), freeing 4 1/2".
+- **7 lying down** (1 1/2" × 3/4") in a row in the top right corner, in the 1" under the divider B (the top row is
+  4" tall, divider B only 3").
+- **12 in the second-to-last plain row**, which held two divider A until one of them became a divider B (the system
+  needs 6 A and 8 B). That row is packed against the left edge (`O A B`, 1/4" apart), so **6 standing** fit in a 3 × 2
+  grid to the right of the divider B and **6 lying down** under it.
+
+`nest.py` fits as many as each space holds. They are their own (orange) layer in the cut file, so they can be given
 different settings, run on their own, or left out.
 
 ## Decisions, in the order they were made
@@ -210,13 +226,16 @@ or bracing is needed.
   | 3 3/16" | 4 3/16" | 1 19/32" | 34.188" (does not fit) |
 
   At **x = 3"** the 9 rows are
-  `P OAB | F BS+U | P OAA | F ITI | P OAA | F ITI | P OAA | F SB+U | P BBBB` (U = a fine test piece; the last row has two divider B at each side and laser test rectangles between them, and the first row has a row of them under its divider B)
+  `P OAB | F SB+U | P OAA | F ITI | P OAA | F ITI | P OAB | F SB+U | P BBBB` (U = a fine test piece; the last row has two divider B at each side and laser test pieces between them, the first row has a row of them under its divider B, and the `OAB` row near the bottom has them beside and under its divider B)
   (P / F = plain / fingered row; O, A, B = rail outer ply, divider A, divider B; S, I = support, rail inner ply).
   The fingered rows run in a fixed order: a support row with the **support pushed against the right edge**, the two
-  rail inner ply rows, then the other support row with the **support pushed against the left edge**.
+  rail inner ply rows, then the other support row with the **support pushed against the left edge**. The top support
+  is turned over so its fingers point down, at the `O A A` row below it.
+  The rows are planned with 7 divider A and 7 divider B (the same total height as 6 and 8), then the right-hand
+  divider A of the last `O A A` row is swapped for a divider B, which frees the space for laser test pieces.
   In the two rail inner ply rows the plies are pushed against the left and right edges of the sheet, leaving an 8 3/4" gap
   in the middle for a test piece (`ITI`). The rows are **1/4" apart** (8 gaps, 2" in all) and the remaining 1" of the 34" side is split into **1/2" of
-  padding at the top and 1/2" at the bottom**. The left and right padding cannot grow: the three `O A A` rows are
+  padding at the top and 1/2" at the bottom**. The left and right padding cannot grow: the two `O A A` rows are
   47 1/4" of parts in 48", so with 1/8" gaps inside them the ends of those rows are held at 1/4". The other rows
   have more room, and the padding in each row is equalized.
 - **Other orientation:** `python3 nest.py short` runs the parts along the 34" side (stacked along the 48" side).
@@ -232,7 +251,7 @@ or bracing is needed.
 The cut file has five groups, each a different colour, so the laser software shows them as five layers
 that can be ordered:
 
-1. **Orange: the 17 laser test rectangles.** Run first to check and set the power and speed (see above), and
+1. **Orange: the 29 laser test pieces.** Run first to check and set the power and speed (see above), and
    skip them later if the settings are already known.
 2. **Magenta: the engraved offset labels** on all 6 test pieces (vector engrave, light power). Engraved before
    anything is cut through, while the sheet is intact.
@@ -246,7 +265,7 @@ that can be ordered:
 Do not move or unload the sheet between passes; after pass 2 the fingered parts are loose in the sheet.
 
 - **Layout check.** `nest.py` tests every pair of parts for crossing outlines, containment or a gap under
-  the minimum, plus the edge padding, the clearance around the dowel holes, and that all 2 + 4 + 4 + 7 + 7
+  the minimum, plus the edge padding, the clearance around the dowel holes, and that all 2 + 4 + 4 + 6 + 8
   parts are present. A failure is circled in red on the preview, printed, and the script exits non-zero.
 
 ## Regenerating
