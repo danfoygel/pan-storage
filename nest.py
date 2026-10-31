@@ -1,4 +1,4 @@
-"""Nest every part onto one 48" x 34" sheet; write layout_<orientation>_x<x>.svg (preview) and cut_<...>_sheet1.svg (1:1, inches).
+"""Nest every part onto one 48" x 34" sheet; write layout_<orientation>_x<x>.svg (preview), layout_<...>_no_tests.svg (the same without the test pieces) and cut_<...>_sheet1.svg (1:1, inches).
 
 Geometry comes from drawer.py. With x the height of the slotted parts (supports, rail inner plies), the rail outer
 plies and divider A are x + 1 tall, divider B is x tall, and the fingers/slots are x / 2 deep.
@@ -243,7 +243,7 @@ def path_d(pts, rounded, r):
     return " ".join(parts) + " Z"
 
 
-PLACED, VIEW, TALLY = [], [], {}
+PLACED, VIEW, TALLY = [], [], {}       # VIEW: (is a test piece, preview element)
 CUTG = {"rects": [], "engrave": [], "holes": [], "fingers": [], "plain": []}   # cut-file elements by operation
 
 
@@ -270,15 +270,16 @@ def put(key, x0, ytop, inv):
     CUTG["holes"] += [f'<circle cx="{x:.4f}" cy="{y:.4f}" r="{dia / 2:.4f}"/>' for x, y, dia in holes]
     lines = [" ".join(f"{'ML'[j > 0]}{x:.4f},{y:.4f}" for j, (x, y) in enumerate(line)) for line in strokes]
     CUTG["engrave"] += [f'<path d="{ln}"/>' for ln in lines]
-    VIEW.append(f'<path d="{dd}" fill="{p["col"]}" stroke="#1f2937" stroke-width="0.03" stroke-linejoin="round"/>')
-    VIEW.extend(f'<path d="{c}" fill="#ffffff" stroke="#1f2937" stroke-width="0.02"/>' for c in cuts)
-    VIEW.extend(f'<circle cx="{x:.4f}" cy="{y:.4f}" r="{dia / 2:.4f}" fill="#ffffff" stroke="#1f2937" stroke-width="0.02"/>' for x, y, dia in holes)
-    VIEW.extend(f'<path d="{ln}" fill="none" stroke="#b91c1c" stroke-width="0.025" stroke-linecap="round"/>' for ln in lines)
-    if key in "TURQ":
+    test = key in "TURQ"
+    VIEW.append((test, f'<path d="{dd}" fill="{p["col"]}" stroke="#1f2937" stroke-width="0.03" stroke-linejoin="round"/>'))
+    VIEW.extend((test, f'<path d="{c}" fill="#ffffff" stroke="#1f2937" stroke-width="0.02"/>') for c in cuts)
+    VIEW.extend((test, f'<circle cx="{x:.4f}" cy="{y:.4f}" r="{dia / 2:.4f}" fill="#ffffff" stroke="#1f2937" stroke-width="0.02"/>') for x, y, dia in holes)
+    VIEW.extend((test, f'<path d="{ln}" fill="none" stroke="#b91c1c" stroke-width="0.025" stroke-linecap="round"/>') for ln in lines)
+    if test:
         return
     tx, ty = to_sheet(x0 + L / 2, ytop + (0.75 if key == "O" else 0.5 * h) + 0.15)
     rot = "" if ORIENT == "long" else f' transform="rotate(90 {tx:.3f} {ty:.3f})"'
-    VIEW.append(f'<text x="{tx:.3f}" y="{ty:.3f}" font-size="0.42" text-anchor="middle" fill="#111827" stroke="#ffffff" stroke-width="0.12" paint-order="stroke"{rot}>{p["name"].split("  ")[0]}</text>')
+    VIEW.append((False, f'<text x="{tx:.3f}" y="{ty:.3f}" font-size="0.42" text-anchor="middle" fill="#111827" stroke="#ffffff" stroke-width="0.12" paint-order="stroke"{rot}>{p["name"].split("  ")[0]}</text>'))
 
 
 def row_order(rows):
@@ -496,7 +497,7 @@ if {k: v for k, v in TALLY.items() if k not in "RQ"} != {**NEED, "T": TEST_COUNT
     ERRORS.append((f"part counts {TALLY} do not match what the system needs {NEED} plus {TEST_COUNT} + {FINE_COUNT} test pieces", (0, 0)))
 VIEW_OY = 8
 for msg, (mx, my) in ERRORS:
-    VIEW.append(f'<circle cx="{mx:.3f}" cy="{my:.3f}" r="0.45" fill="#ef4444" fill-opacity="0.35" stroke="#dc2626" stroke-width="0.12"/>')
+    VIEW.append((False, f'<circle cx="{mx:.3f}" cy="{my:.3f}" r="0.45" fill="#ef4444" fill-opacity="0.35" stroke="#dc2626" stroke-width="0.12"/>'))
 
 cut = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{SHEET_W:g}in" height="{SHEET_H:g}in" viewBox="0 0 {SHEET_W:g} {SHEET_H:g}">']
 for gid, key, color in (("1_laser_test_rectangles", "rects", "#ff8000"), ("2_engrave_test_piece_offset_labels", "engrave", "#ff00ff"),
@@ -523,8 +524,19 @@ if ERRORS:
     head.append(f'<text x="0" y="5.4" font-size="0.8" font-weight="bold" fill="#dc2626">LAYOUT ERRORS ({len(ERRORS)}): ' + "; ".join(m for m, _ in ERRORS[:3]).replace("&", "&amp;").replace('"', "&quot;") + (" ..." if len(ERRORS) > 3 else "") + "</text>")
 else:
     head.append(f'<text x="0" y="5.4" font-size="0.8" font-weight="bold" fill="#15803d">Layout check passed: no overlaps; smallest gap between parts {MIN_GAP:.3f}&quot; (min {G:g}&quot;), smallest edge padding {MIN_EDGE:.3f}&quot; (min {EDGE:g}&quot;).</text>')
-sheet = [f'<g transform="translate(0 {VIEW_OY})">', f'<rect x="0" y="0" width="{SHEET_W:g}" height="{SHEET_H:g}" fill="#fbf7ee" stroke="#6b7280" stroke-width="0.08"/>'] + VIEW + ["</g>"]
-open(f"layout_{TAG}.svg", "w").write("\n".join(head + sheet + ["</svg>"]))
+
+
+def sheet_view(with_tests):
+    return ([f'<g transform="translate(0 {VIEW_OY})">', f'<rect x="0" y="0" width="{SHEET_W:g}" height="{SHEET_H:g}" fill="#fbf7ee" stroke="#6b7280" stroke-width="0.08"/>']
+            + [e for test, e in VIEW if with_tests or not test] + ["</g>"])
+
+
+open(f"layout_{TAG}.svg", "w").write("\n".join(head + sheet_view(True) + ["</svg>"]))
+# the same layout with the test pieces left out (every other part where it is on the full sheet)
+desc_parts = ", ".join(f"{TALLY[k]} x {PARTS[k]['name'].split('  ')[0]}" for k in "SIOAB")
+head_parts = [ln.replace(f": {desc}.", f": {desc_parts} (test pieces not shown).") for ln in head if "Test pieces (offsets" not in ln]
+head_parts = [ln.replace('1 orange = laser test pieces ("9" shapes), 2 magenta = engraved labels, ', "") for ln in head_parts]
+open(f"layout_{TAG}_no_tests.svg", "w").write("\n".join(head_parts + sheet_view(False) + ["</svg>"]))
 _h = PARTS["T"]["holes"]
 _webs = sorted((math.hypot(a[0] - b[0], a[1] - b[1]) - (a[2] + b[2]) / 2, a[2] + b[2], i, j) for i, a in enumerate(_h) for j, b in enumerate(_h) if i < j)
 _big = sorted(range(len(_h)), key=lambda i: -_h[i][2])[:2]
