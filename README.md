@@ -18,6 +18,7 @@ drawings and the nested cut files regenerate together.
 | [`perspective.svg`](perspective.svg) | The birch plywood render (above) |
 | [`drawer.svg`](drawer.svg) | The design drawing (below) |
 | [`layout_long_x3.svg`](layout_long_x3.svg) | Colour preview of the nested sheet |
+| [`layout_long_x3_no_tests.svg`](layout_long_x3_no_tests.svg) | The same preview without the test pieces (every other part in the same place) |
 | [`cut_long_x3_sheet1.svg`](cut_long_x3_sheet1.svg) | 1:1 cut file, 48" × 34", hairline outlines in five colours (laser test pieces, engraved labels, holes, fingered parts, plain parts), no fill, no groups |
 | [`CLEARANCE.md`](CLEARANCE.md) | Every fit that needs an explicit clearance, and what the model currently assumes |
 
@@ -273,7 +274,7 @@ Do not move or unload the sheet between passes; after pass 2 the fingered parts 
 ```bash
 python3 drawer.py        # drawer.svg
 python3 perspective.py   # perspective.svg (wood look)
-python3 nest.py          # layout_long_x3.svg + cut_long_x3_sheet1.svg, with the layout check
+python3 nest.py          # layout_long_x3.svg (+ _no_tests) + cut_long_x3_sheet1.svg, with the layout check
 python3 nest.py --max    # the largest slotted height x that nests (1/16" steps)
 ```
 
