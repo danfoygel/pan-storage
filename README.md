@@ -18,7 +18,7 @@ drawings and the nested cut files regenerate together.
 | [`perspective.svg`](perspective.svg) | The birch plywood render (above) |
 | [`drawer.svg`](drawer.svg) | The design drawing (below) |
 | [`layout_long_x3.svg`](layout_long_x3.svg) | Colour preview of the nested sheet |
-| [`cut_long_x3_sheet1.svg`](cut_long_x3_sheet1.svg) | 1:1 cut file, 48" × 34", hairline outlines in five colour groups (laser test pieces, engraved labels, holes, fingered parts, plain parts), no fill |
+| [`cut_long_x3_sheet1.svg`](cut_long_x3_sheet1.svg) | 1:1 cut file, 48" × 34", hairline outlines in five colours (laser test pieces, engraved labels, holes, fingered parts, plain parts), no fill, no groups |
 | [`CLEARANCE.md`](CLEARANCE.md) | Every fit that needs an explicit clearance, and what the model currently assumes |
 
 ## The design drawing
@@ -248,8 +248,8 @@ or bracing is needed.
 
 ### Cut order
 
-The cut file has five groups, each a different colour, so the laser software shows them as five layers
-that can be ordered:
+The cut file has five colours, so the laser software shows them as five layers that can be ordered. The shapes are
+not grouped (each carries its own colour), so in LightBurn every shape can be selected on its own:
 
 1. **Orange: the 29 laser test pieces.** Run first to check and set the power and speed (see above), and
    skip them later if the settings are already known.

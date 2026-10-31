@@ -502,9 +502,8 @@ cut = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{SHEET_W:g}in" height="{
 for gid, key, color in (("1_laser_test_rectangles", "rects", "#ff8000"), ("2_engrave_test_piece_offset_labels", "engrave", "#ff00ff"),
                         ("3_dowel_holes", "holes", "#ff0000"), ("4_fingered_parts_supports_rail_inner_plies_and_test_pieces", "fingers", "#0000ff"),
                         ("5_plain_parts_rail_outer_plies_and_dividers", "plain", "#008000")):
-    cut.append(f'<g id="{gid}" fill="none" stroke="{color}" stroke-width="0.01">')
-    cut += CUTG[key]
-    cut.append("</g>")
+    cut.append(f"<!-- {gid} -->")                     # no <g>: LightBurn would import each group as one object; the colour sets the layer
+    cut += [e[:-2] + f' fill="none" stroke="{color}" stroke-width="0.01"/>' for e in CUTG[key]]
 cut.append("</svg>")
 TAG = f"{ORIENT}_x{H_F:g}"
 open(f"cut_{TAG}_sheet1.svg", "w").write("\n".join(cut))
